@@ -1,0 +1,48 @@
+services:
+ backend:
+  build:
+   context: .
+   dockerfile: backend/Dockerfile
+  container_name: cogniFlow-backend
+  env_file:
+   - backend/.env
+  ports:
+   - "8000:80"
+  depends_on:
+   - postgres
+   - chromadb
+  restart: always
+
+ frontend:
+  build:
+   context: .
+   dockerfile: frontend/Dockerfile
+  container_name: cogniFlow-frontend
+  env_file:
+   - frontend/.env
+  ports:
+   - "3000:3000"
+  restart: always
+
+ postgres:
+  image: postgres:15
+  container_name: cogniFlow-postgres
+  environment:
+   POSTGRES_USER: postgres
+   POSTGRES_PASSWORD: postgres
+   POSTGRES_DB: cogniflow
+  ports:
+   - "5432:5432"
+  volumes:
+   - postgres_data:/var/lib/postgresql/data
+  restart: always
+
+ chromadb:
+  image: chromadb/chroma:latest
+  container_name: cogniFlow-chromadb
+  ports:
+   - "8001:8000"
+  restart: always
+
+volumes:
+ postgres_data:
