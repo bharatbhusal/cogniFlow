@@ -32,7 +32,6 @@ class Auth_JWT_Token(BaseModel):
     id: str
     email: str
     password: str
-    role: str
     
 
 # TypedDict versions for stricter typing
@@ -64,4 +63,3 @@ class AuthJWTTokenDict(TypedDict):
     id: str
     email: str
     password: str
-    role: str

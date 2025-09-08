@@ -1,12 +1,12 @@
 from jose import jwt, JWTError
 from fastapi import HTTPException, status
 from app.config.env import get_settings
-from app.types.user import Auth_JWT_Token
+from app.types.user import AuthJWTTokenDict
 
 settings = get_settings()
 
 
-def create_access_token(data: Auth_JWT_Token) -> str:
+def create_access_token(data: AuthJWTTokenDict) -> str:
     """
     Create a JWT access token without expiration.
     """
@@ -14,7 +14,7 @@ def create_access_token(data: Auth_JWT_Token) -> str:
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Auth_JWT_Token:
+def decode_access_token(token: str) -> AuthJWTTokenDict:
     """
     Decode a JWT token and return the payload.
     Raises HTTPException if token is invalid or expired.
