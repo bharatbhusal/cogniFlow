@@ -6,5 +6,5 @@ docker compose down
 # Build the Docker images
 docker compose build
 
-# Start the containers
-docker compose up postgres chromadb backend frontend
+# Start the containers (without auto-starting dependencies)
+docker compose up postgres backend --no-deps
