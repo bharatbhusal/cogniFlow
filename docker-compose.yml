@@ -1,10 +1,8 @@
-version: "3.9"
-
 services:
  backend:
   build:
-   context: .
-   dockerfile: backend/Dockerfile
+   context: ./backend
+   dockerfile: Dockerfile
   container_name: cogniFlow-backend
   env_file:
    - backend/.env
@@ -15,12 +13,13 @@ services:
    - chromadb
   restart: always
   volumes:
-   - ./backend/app:/app
+   - ./backend:/app
+   - /app/venv
 
  frontend:
   build:
-   context: .
-   dockerfile: frontend/Dockerfile
+   context: ./frontend
+   dockerfile: Dockerfile
   container_name: cogniFlow-frontend
   env_file:
    - frontend/.env

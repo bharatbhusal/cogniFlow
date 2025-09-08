@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 from app.services.openai_service import openai_service
 from app.services.knowledge_base import knowledge_base_service
-from app.models.responses import (
+from app.types.responses import (
     WorkflowExecutionError,
     WorkflowParsingError,
     InvalidWorkflowError,

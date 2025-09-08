@@ -7,4 +7,4 @@ docker compose down
 docker compose build
 
 # Start the containers
-docker compose up
+docker compose up postgres chromadb backend frontend

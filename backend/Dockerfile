@@ -1,4 +1,4 @@
-FROM python:3.9.22-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -11,9 +11,19 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./backend/ .
-
+# Copy requirements first for better caching
+COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+# Copy application code
+COPY . .
+
+# Make entrypoint script executable
+RUN chmod +x ./entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
+
+# Default command (can be overridden)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,8 +1,8 @@
 import os
 from typing import List, Optional, Dict, Any
 from openai import AsyncOpenAI
-from app.core.config import get_settings
-from app.models.responses import (
+from app.config.env import get_settings
+from app.types.responses import (
     OpenAIError, 
     EmbeddingError, 
     TokenLimitExceededError, 
@@ -18,23 +18,20 @@ class OpenAIService:
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY
         )
-        self.embedding_model = settings.OPENAI_EMBEDDING_MODEL
-        self.chat_model = settings.OPENAI_MODEL
-    
+        self.embedding_model = "text-embedding-ada-002"
+        self.llm_model = "gpt-3.5-turbo"
+
     async def generate_chat_completion(
         self,
         messages: List[Dict[str, str]],
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
         temperature: float = 0.7,
         **kwargs
     ) -> Dict[str, Any]:
         """Generate chat completion using OpenAI API"""
         try:
             response = await self.client.chat.completions.create(
-                model=model or self.chat_model,
+                model= self.llm_model,
                 messages=messages,
-                max_tokens=max_tokens,
                 temperature=temperature,
                 **kwargs
             )
@@ -66,7 +63,6 @@ class OpenAIService:
     async def generate_embeddings(
         self,
         texts: List[str],
-        model: Optional[str] = None
     ) -> List[List[float]]:
         """Generate embeddings for a list of texts"""
         try:
@@ -80,7 +76,7 @@ class OpenAIService:
                 )
             
             response = await self.client.embeddings.create(
-                model=model or self.embedding_model,
+                model=self.embedding_model,
                 input=cleaned_texts
             )
             
@@ -101,10 +97,9 @@ class OpenAIService:
     async def generate_single_embedding(
         self,
         text: str,
-        model: Optional[str] = None
     ) -> List[float]:
         """Generate embedding for a single text"""
-        embeddings = await self.generate_embeddings([text], model)
+        embeddings = await self.generate_embeddings([text])
         return embeddings[0]
     
     async def run_rag_pipeline(

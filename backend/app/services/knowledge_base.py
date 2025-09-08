@@ -2,12 +2,12 @@ import os
 import uuid
 from typing import List, Optional, Dict, Any
 from pathlib import Path
-import PyMuPDF  # fitz
+import fitz as PyMuPDF 
 import chromadb
 from chromadb.config import Settings
-from app.core.config import get_settings
+from app.config.env import get_settings
 from app.services.openai_service import openai_service
-from app.models.responses import (
+from app.types.responses import (
     DocumentProcessingError,
     TextExtractionError,
     ChunkingError,
