@@ -2,7 +2,7 @@ from typing import Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.user import User
-from app.types.user import UserRegister
+from app.types.user import UserRegister,UserRegisterDict
 
 class UserRepository:
     @staticmethod
@@ -16,7 +16,7 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def create(db: AsyncSession, user: Dict) -> User:
+    async def create(db: AsyncSession, user: UserRegisterDict) -> User:
         db_user = User(**user) 
         db.add(db_user)        
         await db.commit()

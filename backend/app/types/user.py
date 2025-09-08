@@ -1,15 +1,13 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, NotRequired
+from typing_extensions import TypedDict
 from pydantic import BaseModel
 
-# User Pydantic models
 class UserBase(BaseModel):
-    username: str
     email: str
     full_name: Optional[str] = None
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
     email: Optional[str] = None
     full_name: Optional[str] = None
     password: Optional[str] = None
@@ -23,10 +21,8 @@ class UserResponse(UserBase):
         orm_mode = True
 
 class UserRegister(BaseModel):
-    username: str
     email: str
     password: str
-
 
 class UserLogin(BaseModel):
     email: str
@@ -34,7 +30,38 @@ class UserLogin(BaseModel):
     
 class Auth_JWT_Token(BaseModel):
     id: str
-    username: str
+    email: str
+    password: str
+    role: str
+    
+
+# TypedDict versions for stricter typing
+class UserBaseDict(TypedDict):
+    email: str
+    full_name: NotRequired[Optional[str]] 
+
+class UserUpdateDict(TypedDict, total=False): 
+    email: str
+    full_name: str
+    password: str
+
+class UserResponseDict(TypedDict):
+    id: int
+    email: str
+    full_name: NotRequired[Optional[str]]
+    created_at: datetime
+    updated_at: datetime
+
+class UserRegisterDict(TypedDict):
+    email: str
+    password: str
+
+class UserLoginDict(TypedDict):
+    email: str
+    password: str
+    
+class AuthJWTTokenDict(TypedDict):
+    id: str
     email: str
     password: str
     role: str

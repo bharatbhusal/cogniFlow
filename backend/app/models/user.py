@@ -9,11 +9,6 @@ class User(Base):
     id = Column(String, primary_key=True, default=cuid_str)
     email = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=False)
-    first_name = Column(String, nullable=True)
-    middle_name = Column(String, nullable=True)
-    last_name = Column(String, nullable=True)
+    full_name = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    # Relationships
-    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")

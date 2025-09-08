@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.middlewares.auth_middleware import get_current_user
-from app.types.user import UserLogin, UserRegister, UserResponse
+from app.types.user import UserBaseDict, UserLogin, UserRegister, UserResponse, UserRegisterDict
 from app.repositories.user import UserRepository
 from app.config.db import get_db
 from typing import Dict, Optional
@@ -9,9 +9,9 @@ from typing import Dict, Optional
 router = APIRouter()
 
 @router.post("/register")
-async def register(user: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(user: UserRegisterDict, db: AsyncSession = Depends(get_db)):
     # Check if user already exists
-    existing_user = await UserRepository.get_by_email(db=db, email=user.email)
+    existing_user = await UserRepository.get_by_email(db=db, email=user["email"])
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     

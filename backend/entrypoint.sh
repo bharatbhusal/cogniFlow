@@ -23,7 +23,7 @@ log "Starting CogniFlow Backend..."
 
 # Wait for database to be ready
 log "Waiting for database connection..."
-max_tries=30
+max_tries=10
 tries=0
 
 until python -c "
