@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.middlewares.auth_middleware import get_current_user
-from app.types.user import  UserLogin, UserResponse, UserRegisterDict, UserLoginDict
+from app.types.user import  UserLogin, UserResponse, UserRegisterDict, UserLoginDict, AuthJWTTokenDict
 from app.repositories.user import UserRepository
 from app.config.db import get_db
 from app.utils.hashing import hash_data, verify_data
@@ -36,17 +36,13 @@ async def login(user: UserLoginDict, db: AsyncSession = Depends(get_db)):
     # Verify password
     if not verify_data(user["password"], existing_user.password):
         raise HTTPException(status_code=400, detail="Invalid email or password")
+    
     token = create_access_token({"id": existing_user.id, "password": user["password"], "email": existing_user.email})
-    print("Token : ", token)
     del existing_user.password
     return {"access_token": token, "user": existing_user}
 
 @router.get("/me")
-async def get_me(user: UserResponse = Depends(get_current_user)):
-    # Get current user info
-    return {"access_token": "jwt_token", "token_type": "bearer"}
-
-@router.get("/me")
-async def get_me(user: UserResponse = Depends(get_current_user)):
-    # Get current user info
-    return {"user": user}
+async def get_me(user: AuthJWTTokenDict | None = Depends(get_current_user)):
+    if user is not None:
+        return {"user": user}
+    return {"user": None}
