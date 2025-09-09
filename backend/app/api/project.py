@@ -1,12 +1,14 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends, status
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.repositories.document import DocumentRepository
 from app.services.project_service import ProjectService
+from app.types.query import QueryRequest
 from app.types.user import AuthJWTTokenDict
 from app.middlewares.auth_middleware import get_current_user
 from app.config.db import get_db
 from app.utils.responses import create_success_response, create_error_response
+from app.services.knowledge_base import knowledge_base_service
 
 router = APIRouter()
 
@@ -231,8 +233,7 @@ async def delete_project(
 @router.post("/{project_id}/query")
 async def query_project(
     project_id: str,
-    query: str = Form(...),
-    n_results: int = Form(5),
+    request: QueryRequest,
     user: AuthJWTTokenDict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -244,12 +245,12 @@ async def query_project(
         query: Search query text
         n_results: Number of results to return (default: 5)
     """
+    query = request.query
     try:
         # Verify user has access to the project
         await ProjectService.get_project_details(db, project_id, user["id"])
         
         # Get ChromaDB chunk IDs for the project
-        from app.repositories.document import DocumentRepository
         chromadb_chunk_ids = await DocumentRepository.get_project_chromadb_chunk_ids(db, project_id)
         
         if not chromadb_chunk_ids:
@@ -260,12 +261,11 @@ async def query_project(
             )
         
         # Query the knowledge base
-        from app.services.knowledge_base import knowledge_base_service
         context_chunks = await knowledge_base_service.retrieve_relevant_context_by_ids(
             query=query,
-            n_results=min(n_results, 20),  # Cap at 20 results
             chromadb_chunk_ids=chromadb_chunk_ids
         )
+        
         
         return create_success_response(
             message="Query executed successfully",

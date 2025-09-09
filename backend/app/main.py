@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.api import auth, interact, project, open
+from app.api import auth, project, open
 from app.config.env import get_settings
 from app.config.db import check_db_connection, create_tables
 import logging
@@ -73,4 +73,3 @@ app.add_middleware(
 app.include_router(open.router, prefix="/api/open", tags=["open"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(project.router, prefix="/api/projects", tags=["projects"])
-app.include_router(interact.router, prefix="/api/ai", tags=["ai"])

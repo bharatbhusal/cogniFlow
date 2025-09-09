@@ -1,8 +1,6 @@
 from pydantic import BaseModel
 
-class UserQueryRequest(BaseModel):
-    project_id: str
-    user_id: str
+class QueryRequest(BaseModel):
     query: str
 
 

@@ -384,7 +384,6 @@ class KnowledgeBaseService:
             query_embedding = await openai_service.generate_single_embedding(query)
             
             # Query only specific chunk IDs if provided
-            where_filter = None
             if chromadb_chunk_ids:
                 # Query ChromaDB with specific IDs
                 results = self.collection.query(
@@ -417,10 +416,8 @@ class KnowledgeBaseService:
                 for i, doc in enumerate(results["documents"][0]):
                     context_chunks.append({
                         "text": doc,
-                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
                         "similarity": 1 - results["distances"][0][i] if results["distances"] else 0,
                         "chunk_id": results["ids"][0][i] if results["ids"] else None,
-                        "source": results["metadatas"][0][i].get("filename", "unknown") if results["metadatas"] else "unknown",
                         "document_id": results["metadatas"][0][i].get("document_id", "unknown") if results["metadatas"] else "unknown"
                     })
             
