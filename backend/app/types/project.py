@@ -19,3 +19,7 @@ class ProjectCreateDict(TypedDict):
     name: str
     description: Optional[str] = ""
     owner_id: str
+    
+class ProjectUpdateDict(TypedDict):
+    name: Optional[str]
+    description: Optional[str]

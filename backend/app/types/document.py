@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
+from typing_extensions import TypedDict
 
 # Document Pydantic models
 class DocumentBase(BaseModel):
@@ -27,3 +28,8 @@ class DocumentResponse(DocumentBase):
 
     class Config:
         orm_mode = True
+
+class DocumentCreateDict(TypedDict):
+    title: str
+    project_id: int
+    chroma_document_id: str

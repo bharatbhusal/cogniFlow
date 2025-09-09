@@ -55,7 +55,6 @@ class KnowledgeBaseService:
         content: bytes,
         filename: str,
         document_id: str,
-        project_id: str,
         chunk_size: int = 1000,
         chunk_overlap: int = 200
     ) -> Dict[str, Any]:
@@ -79,7 +78,6 @@ class KnowledgeBaseService:
             
             # Generate embeddings for chunks
             embeddings = await openai_service.generate_embeddings(chunks)
-            
             # Store in vector database
             chunk_ids = await self.store_chunks_in_vectordb(
                 chunks=chunks,
@@ -87,7 +85,6 @@ class KnowledgeBaseService:
                 document_id=document_id,
                 metadata={
                     "filename": filename,
-                    "project_id": project_id,
                     "pages": pages,
                     "processing_timestamp": str(uuid.uuid4())
                 }
@@ -338,20 +335,17 @@ class KnowledgeBaseService:
         self,
         query: str,
         n_results: int = 5,
-        document_ids: Optional[List[str]] = None,
-        project_id: Optional[str] = None
+        document_ids: List[str] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve most relevant text chunks for a query"""
         try:
             # Generate embedding for the query
             query_embedding = await openai_service.generate_single_embedding(query)
-            
+            if not document_ids:
+                raise ValueError("document_ids must be provided for context retrieval")
             # Prepare query filters
-            where_filter = None
-            if document_ids:
-                where_filter = {"document_id": {"$in": document_ids}}
-            elif project_id:
-                where_filter = {"project_id": project_id}
+            where_filter = {"document_id": {"$in": document_ids}}
+           
             
             # Query ChromaDB
             results = self.collection.query(
@@ -511,6 +505,7 @@ class KnowledgeBaseService:
                 where={"document_id": document_id},
                 include=["metadatas"]
             )
+            print("\n\nChromaDB delete_document results:", results)  # Debugging line
             
             if results["ids"]:
                 self.collection.delete(ids=results["ids"])
