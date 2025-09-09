@@ -9,6 +9,7 @@ from app.middlewares.auth_middleware import get_current_user
 from app.config.db import get_db
 from app.utils.responses import create_success_response, create_error_response
 from app.services.knowledge_base import knowledge_base_service
+from app.services.openai_service import openai_service
 
 router = APIRouter()
 
@@ -265,16 +266,16 @@ async def query_project(
             query=query,
             chromadb_chunk_ids=chromadb_chunk_ids
         )
-        
+        retrived_context = [each["text"] for each in context_chunks]
+
+        llm_response = await openai_service.run_rag_pipeline(user_query=query, retrieved_context=retrived_context)
         
         return create_success_response(
             message="Query executed successfully",
             data={
                 "query": query,
                 "project_id": project_id,
-                "total_available_chunks": len(chromadb_chunk_ids),
-                "results_count": len(context_chunks),
-                "results": context_chunks
+                "llm_response": llm_response["response_text"]
             }
         )
         

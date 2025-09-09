@@ -117,7 +117,7 @@ class OpenAIService:
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a helpful AI assistant that answers questions based on provided context. Always ground your responses in the given context and cite sources when possible."
+                    "content": "You are an AI assistant that ONLY answers questions using the provided context. IMPORTANT RULES: 1) You must ONLY use information from the context provided. 2) If the context doesn't contain sufficient information to answer the question, you must say 'I cannot answer this question based on the provided context. Please add more relevant documents.' 3) Do NOT use your general knowledge or training data. 4) Do NOT make assumptions or inferences beyond what is explicitly stated in the context."
                 },
                 {
                     "role": "user", 
@@ -162,15 +162,14 @@ class OpenAIService:
     
     def _create_rag_prompt(self, user_query: str, context_text: str) -> str:
         """Create the final RAG prompt template"""
-        template = """Based solely on the context provided below, please answer the user's question. 
-If the context does not contain enough information to answer the question, state that clearly.
-
-Context:
+        template = """CONTEXT INFORMATION:
 {context}
 
-Question: {question}
+INSTRUCTIONS: Answer the following question using ONLY the information provided in the context above. Do not use any external knowledge or make assumptions. If the context doesn't contain enough information to answer the question completely, clearly state what information is missing.
 
-Please provide a comprehensive answer based on the context above, and indicate which sources (if any) support your response."""
+QUESTION: {question}
+
+ANSWER (using only the context above):"""
 
         return template.format(context=context_text, question=user_query)
     
@@ -192,15 +191,15 @@ Please provide a comprehensive answer based on the context above, and indicate w
                 all_context.extend(web_results)
             
             if not all_context:
-                # Fallback to direct LLM response
+                # Fallback to direct LLM response with clear limitation
                 messages = [
                     {
                         "role": "system",
-                        "content": "You are a helpful AI assistant. Answer the user's question to the best of your knowledge."
+                        "content": "You are a helpful AI assistant. Since no specific context was provided, you can use your general knowledge to answer the question, but please indicate that your answer is based on general knowledge and not specific documents."
                     },
                     {
                         "role": "user",
-                        "content": user_query
+                        "content": f"No specific context was provided. Using general knowledge, please answer: {user_query}"
                     }
                 ]
                 
