@@ -1,99 +1,133 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends
-from typing import Optional
-import fitz  # PyMuPDF
-from io import BytesIO
-import hashlib
-import uuid
-from app.services.knowledge_base import knowledge_base_service
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends, status
+from typing import Optional, List
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services.project_service import ProjectService
 from app.types.user import AuthJWTTokenDict
 from app.middlewares.auth_middleware import get_current_user
-from app.repositories.project import ProjectRepository
-from app.repositories.document import DocumentRepository
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.db import get_db
-from app.utils.cuid_str import cuid_str
-
+from app.utils.responses import create_success_response, create_error_response
 
 router = APIRouter()
 
-@router.get("/")
-async def list_projects(db: AsyncSession = Depends(get_db), user: AuthJWTTokenDict = Depends(get_current_user)):
-    return await ProjectRepository.get_by_owner_id(db, user["id"])
 
 @router.post("")
 async def create_project(
     name: str = Form(...),
     description: Optional[str] = Form(None),
-    pdf_files: list[UploadFile] = File(...),
+    pdf_files: Optional[List[UploadFile]] = File(None),
     user: AuthJWTTokenDict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if not pdf_files:
-        raise HTTPException(
-            status_code=400,
-            detail="At least one PDF file is required"
-        )
+    """
+    Create a new project with optional PDF file uploads
     
-    for pdf_file in pdf_files:
-        # Validate file type
-        if pdf_file.content_type != "application/pdf":
-            raise HTTPException(
-                status_code=400,
-                detail=f"File '{pdf_file.filename}' is not a PDF. Only PDF files are allowed."
+    Args:
+        name: Project name (required)
+        description: Project description (optional)
+        pdf_files: List of PDF files to upload (optional)
+    """
+    try:
+        # Validate that at least one PDF is provided if files are uploaded
+        if pdf_files and len(pdf_files) == 0:
+            return create_error_response(
+                message="If uploading files, at least one PDF file is required",
+                error_code="VALIDATION_ERROR",
+                status_code=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate file size (e.g., max 20MB per file)
-        if pdf_file.size > 20 * 1024 * 1024:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File '{pdf_file.filename}' is too large. Maximum size is 20MB per file."
-            )
-        
-    project = await ProjectRepository.create(
-        db=db,
-        project={
-            "name": name,
-            "description": description,
-            "owner_id": user["id"]
-        }
-    )
-    processed_files = []
-    for pdf_file in pdf_files:
-        content = await pdf_file.read()
-        document_id = cuid_str()
-        processed_document = await knowledge_base_service.process_document_from_memory(
-            content=content,
-            filename=pdf_file.filename,
-            document_id=document_id,
-            chunk_size=1000,
-            chunk_overlap=200
-        )
-        await pdf_file.seek(0)
-        processed_files.append(processed_document)
-
-        await DocumentRepository.create(
+        result = await ProjectService.create_project_with_documents(
             db=db,
-            document={"title": processed_document["filename"], "project_id": project.id, "chroma_document_id": processed_document["document_id"]}
+            name=name,
+            user_id=user["id"],
+            description=description,
+            pdf_files=pdf_files
         )
         
-    return {
-        "msg": "Project created and PDFs processed successfully",
-        "project_id": project.id,
-        "name": name,
-        "description": description,
-        "total_files": len(processed_files),
-        "files": processed_files
-    }
+        return create_success_response(
+            message="Project created successfully",
+            data=result,
+            status_code=status.HTTP_201_CREATED
+        )
+        
+    except HTTPException as e:
+        return create_error_response(
+            message=e.detail,
+            error_code="PROJECT_CREATION_ERROR",
+            status_code=e.status_code
+        )
+    except Exception as e:
+        return create_error_response(
+            message="Failed to create project",
+            error_code="INTERNAL_SERVER_ERROR",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@router.get("/")
+async def list_projects(
+    user: AuthJWTTokenDict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all projects for the authenticated user
+    """
+    try:
+        projects = await ProjectService.get_user_projects(db, user["id"])
+        return create_success_response(
+            message="Projects retrieved successfully",
+            data={
+                "projects": projects,
+                "total_count": len(projects)
+            }
+        )
+    except HTTPException as e:
+        return create_error_response(
+            message=e.detail,
+            error_code="PROJECT_RETRIEVAL_ERROR",
+            status_code=e.status_code
+        )
+    except Exception as e:
+        return create_error_response(
+            message="Failed to retrieve projects",
+            error_code="INTERNAL_SERVER_ERROR",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @router.get("/{project_id}")
-async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
-    """Get project details and document status"""
+async def get_project(
+    project_id: str,
+    user: AuthJWTTokenDict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get detailed information about a specific project
+    """
     try:
-        return await ProjectRepository.get_by_id(db, project_id)
+        project_details = await ProjectService.get_project_details(
+            db=db,
+            project_id=project_id,
+            user_id=user["id"]
+        )
+        
+        return create_success_response(
+            message="Project details retrieved successfully",
+            data=project_details
+        )
+        
+    except HTTPException as e:
+        return create_error_response(
+            message=e.detail,
+            error_code="PROJECT_NOT_FOUND" if e.status_code == 404 else "PROJECT_ACCESS_ERROR",
+            status_code=e.status_code
+        )
     except Exception as e:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Project not found or error retrieving status: {str(e)}"
+        return create_error_response(
+            message="Failed to retrieve project details",
+            error_code="INTERNAL_SERVER_ERROR",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 @router.put("/{project_id}")
@@ -101,136 +135,159 @@ async def update_project(
     project_id: str,
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    pdf_files: Optional[list[UploadFile]] = File(None),
-    delete_documents: Optional[str] = Form(None),  # Comma-separated document IDs to delete
+    pdf_files: Optional[List[UploadFile]] = File(None),
+    delete_documents: Optional[str] = Form(None),  # Comma-separated document IDs
     user: AuthJWTTokenDict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Update project: name, description, add PDFs, or delete documents
-    - name: New project name (optional)
-    - description: New project description (optional)  
-    - pdf_files: New PDF files to add (optional)
-    - delete_documents: Comma-separated list of document IDs to delete (optional)
+    Update project details, add new documents, or delete existing documents
+    
+    Args:
+        project_id: ID of the project to update
+        name: New project name (optional)
+        description: New project description (optional)
+        pdf_files: New PDF files to add (optional)
+        delete_documents: Comma-separated list of document IDs to delete (optional)
     """
-    
-    # Check if project exists and user owns it
-    project = await ProjectRepository.get_by_id(db, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    if project.owner_id != user["id"]:
-        raise HTTPException(status_code=403, detail="Not authorized to update this project")
-    
-    update_data = {}
-
-    
-    # Update project name and description
-    if name is not None:
-        update_data["name"] = name
-    if description is not None:
-        update_data["description"] = description
-    
-    if update_data:
-        updated_project = await ProjectRepository.update(db, project_id, update_data)
-    else:
-        updated_project = project
-    
-    # Delete specified documents
-    if delete_documents:
-        document_ids_to_delete = [doc_id.strip() for doc_id in delete_documents.split(",") if doc_id.strip()]
+    try:
+        # Parse delete_documents string into list
+        delete_document_ids = None
+        if delete_documents:
+            delete_document_ids = [doc_id.strip() for doc_id in delete_documents.split(",") if doc_id.strip()]
         
-        for doc_id in document_ids_to_delete:
-            print("\n\nDeleting document:", doc_id)
-            try:
-                # Get document to verify it belongs to this project
-                document = await DocumentRepository.get_by_id(db, doc_id)
-                if document and document.project_id == project_id:
-                    # Delete from ChromaDB first
-                    knowledge_base_service.delete_document(doc_id)
-                    await DocumentRepository.delete(db, doc_id)
-                else:
-                    raise HTTPException(
-                        status_code=404, 
-                        detail=f"Document {doc_id} not found or doesn't belong to this project"
-                    )
-            except Exception as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Error deleting document {doc_id}: {str(e)}"
-                )
-    
-    # Add new PDF files
-    if pdf_files:
-        # Validate new PDF files
-        for pdf_file in pdf_files:
-            if pdf_file.content_type != "application/pdf":
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File '{pdf_file.filename}' is not a PDF. Only PDF files are allowed."
-                )
-            
-            if pdf_file.size > 20 * 1024 * 1024:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File '{pdf_file.filename}' is too large. Maximum size is 20MB per file."
-                )
+        # Validate that at least one update operation is requested
+        if not any([name is not None, description is not None, pdf_files, delete_document_ids]):
+            return create_error_response(
+                message="At least one update operation must be specified",
+                error_code="VALIDATION_ERROR",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         
-        # Process new PDF files
-        for pdf_file in pdf_files:
-            try:
-                content = await pdf_file.read()
-                document_id = cuid_str()
-                
-                # Process PDF and store in ChromaDB
-                await knowledge_base_service.process_document_from_memory(
-                    content=content,
-                    filename=pdf_file.filename,
-                    document_id=document_id,
-                    chunk_size=1000,
-                    chunk_overlap=200
-                )
-                
-                # Create document record in PostgreSQL
-                await DocumentRepository.create(
-                    db=db,
-                    document={
-                        "title": pdf_file.filename,
-                        "project_id": project_id,
-                        "chroma_document_id": document_id,
-                    }
-                )
-                await pdf_file.seek(0)
-                
-            except Exception as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Error processing PDF '{pdf_file.filename}': {str(e)}"
-                )
-    
-    response = {
-        "msg": "Project updated successfully",
-        "project_id": project_id,
-        "name": updated_project.name,
-        "description": updated_project.description,
-    }
-    
-    return response
+        result = await ProjectService.update_project(
+            db=db,
+            project_id=project_id,
+            user_id=user["id"],
+            name=name,
+            description=description,
+            pdf_files=pdf_files,
+            delete_document_ids=delete_document_ids
+        )
+        
+        return create_success_response(
+            message="Project updated successfully",
+            data=result
+        )
+        
+    except HTTPException as e:
+        return create_error_response(
+            message=e.detail,
+            error_code="PROJECT_UPDATE_ERROR",
+            status_code=e.status_code
+        )
+    except Exception as e:
+        return create_error_response(
+            message="Failed to update project",
+            error_code="INTERNAL_SERVER_ERROR",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str, db: AsyncSession = Depends(get_db), user: AuthJWTTokenDict = Depends(get_current_user)):
-    """Delete project and all its documents"""
+async def delete_project(
+    project_id: str,
+    user: AuthJWTTokenDict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a project and all its associated documents
+    """
     try:
-        documents = await DocumentRepository.get_by_project_id(db, project_id)
-        for doc in documents:
-            knowledge_base_service.delete_document(doc.chroma_document_id)
-        await ProjectRepository.delete(db, project_id)
-        return {"msg": f"Project {project_id} deleted successfully"}
+        result = await ProjectService.delete_project(
+            db=db,
+            project_id=project_id,
+            user_id=user["id"]
+        )
         
-    except HTTPException:
-        raise
+        return create_success_response(
+            message="Project deleted successfully",
+            data=result
+        )
+        
+    except HTTPException as e:
+        return create_error_response(
+            message=e.detail,
+            error_code="PROJECT_DELETION_ERROR",
+            status_code=e.status_code
+        )
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error deleting project: {str(e)}"
+        return create_error_response(
+            message="Failed to delete project",
+            error_code="INTERNAL_SERVER_ERROR",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@router.post("/{project_id}/query")
+async def query_project(
+    project_id: str,
+    query: str = Form(...),
+    n_results: int = Form(5),
+    user: AuthJWTTokenDict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Query documents within a specific project using semantic search
+    
+    Args:
+        project_id: ID of the project to query
+        query: Search query text
+        n_results: Number of results to return (default: 5)
+    """
+    try:
+        # Verify user has access to the project
+        await ProjectService.get_project_details(db, project_id, user["id"])
+        
+        # Get ChromaDB chunk IDs for the project
+        from app.repositories.document import DocumentRepository
+        chromadb_chunk_ids = await DocumentRepository.get_project_chromadb_chunk_ids(db, project_id)
+        
+        if not chromadb_chunk_ids:
+            return create_error_response(
+                message="No documents found in this project",
+                error_code="NO_DOCUMENTS_FOUND",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Query the knowledge base
+        from app.services.knowledge_base import knowledge_base_service
+        context_chunks = await knowledge_base_service.retrieve_relevant_context_by_ids(
+            query=query,
+            n_results=min(n_results, 20),  # Cap at 20 results
+            chromadb_chunk_ids=chromadb_chunk_ids
+        )
+        
+        return create_success_response(
+            message="Query executed successfully",
+            data={
+                "query": query,
+                "project_id": project_id,
+                "total_available_chunks": len(chromadb_chunk_ids),
+                "results_count": len(context_chunks),
+                "results": context_chunks
+            }
+        )
+        
+    except HTTPException as e:
+        return create_error_response(
+            message=e.detail,
+            error_code="PROJECT_QUERY_ERROR",
+            status_code=e.status_code
+        )
+    except Exception as e:
+        return create_error_response(
+            message="Failed to query project",
+            error_code="INTERNAL_SERVER_ERROR",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

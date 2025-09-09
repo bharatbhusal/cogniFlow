@@ -1,11 +1,8 @@
 import os
 import uuid
 from typing import List, Optional, Dict, Any
-from pathlib import Path
 import fitz as PyMuPDF 
 import chromadb
-from chromadb.config import Settings
-from io import BytesIO
 from app.config.env import get_settings
 from app.services.openai_service import openai_service
 from app.types.responses import (
@@ -375,6 +372,66 @@ class KnowledgeBaseService:
                 details=str(e)
             )
     
+    async def retrieve_relevant_context_by_ids(
+        self,
+        query: str,
+        n_results: int = 5,
+        chromadb_chunk_ids: List[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Retrieve relevant context using specific ChromaDB chunk IDs"""
+        try:
+            # Generate embedding for the query
+            query_embedding = await openai_service.generate_single_embedding(query)
+            
+            # Query only specific chunk IDs if provided
+            where_filter = None
+            if chromadb_chunk_ids:
+                # Query ChromaDB with specific IDs
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=n_results,
+                    include=["documents", "metadatas", "distances", "embeddings"]
+                )
+                
+                # Filter results to only include specified chunk IDs
+                if results["ids"] and results["ids"][0]:
+                    filtered_results = {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
+                    for i, chunk_id in enumerate(results["ids"][0]):
+                        if chunk_id in chromadb_chunk_ids:
+                            filtered_results["documents"][0].append(results["documents"][0][i])
+                            filtered_results["metadatas"][0].append(results["metadatas"][0][i] if results["metadatas"] else {})
+                            filtered_results["distances"][0].append(results["distances"][0][i] if results["distances"] else 0)
+                            filtered_results["ids"][0].append(chunk_id)
+                    results = filtered_results
+            else:
+                # Regular query without ID filtering
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=n_results,
+                    include=["documents", "metadatas", "distances"]
+                )
+            
+            # Format results
+            context_chunks = []
+            if results["documents"] and results["documents"][0]:
+                for i, doc in enumerate(results["documents"][0]):
+                    context_chunks.append({
+                        "text": doc,
+                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                        "similarity": 1 - results["distances"][0][i] if results["distances"] else 0,
+                        "chunk_id": results["ids"][0][i] if results["ids"] else None,
+                        "source": results["metadatas"][0][i].get("filename", "unknown") if results["metadatas"] else "unknown",
+                        "document_id": results["metadatas"][0][i].get("document_id", "unknown") if results["metadatas"] else "unknown"
+                    })
+            
+            return context_chunks
+            
+        except Exception as e:
+            raise ContextRetrievalError(
+                message="Failed to retrieve relevant context by IDs",
+                details=str(e)
+            )
+
     async def get_project_status(self, project_id: str) -> Dict[str, Any]:
         """Get status of all documents in a project"""
         try:
