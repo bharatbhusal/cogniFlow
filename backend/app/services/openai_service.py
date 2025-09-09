@@ -106,13 +106,14 @@ class OpenAIService:
         self,
         user_query: str,
         retrieved_context: List[str],
+        conversation_history: Optional[List[Dict[str, str]]] = None,
         context_limit: int = 3000
     ) -> Dict[str, Any]:
-        """Execute the RAG pipeline with user query and retrieved context"""
+        """Execute the RAG pipeline with user query, retrieved context, and conversation history"""
         try:
             # Build the augmented prompt
             context_text = self._build_context_text(retrieved_context, context_limit)
-            augmented_prompt = self._create_rag_prompt(user_query, context_text)
+            augmented_prompt = self._create_rag_prompt(user_query, context_text, conversation_history)
             
             messages = [
                 {
@@ -160,18 +161,28 @@ class OpenAIService:
                 details=str(e)
             )
     
-    def _create_rag_prompt(self, user_query: str, context_text: str) -> str:
-        """Create the final RAG prompt template"""
+    def _create_rag_prompt(self, user_query: str, context_text: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+        """Create the final RAG prompt template with conversation history"""
+        
+        # Build conversation history section
+        history_text = ""
+        if conversation_history:
+            history_text = "\nCONVERSATION HISTORY:\n"
+            for msg in conversation_history:
+                role_label = "Human" if msg["role"] == "user" else "Assistant"
+                history_text += f"{role_label}: {msg['content']}\n"
+            history_text += "\n"
+        
         template = """CONTEXT INFORMATION:
 {context}
-
-INSTRUCTIONS: Answer the following question using ONLY the information provided in the context above. Do not use any external knowledge or make assumptions. If the context doesn't contain enough information to answer the question completely, clearly state what information is missing.
+{history}
+INSTRUCTIONS: Answer the following question using ONLY the information provided in the context above. Consider the conversation history for context, but do not use any external knowledge or make assumptions. If the context doesn't contain enough information to answer the question completely, clearly state what information is missing.
 
 QUESTION: {question}
 
-ANSWER (using only the context above):"""
+ANSWER (using only the context and conversation history above):"""
 
-        return template.format(context=context_text, question=user_query)
+        return template.format(context=context_text, history=history_text, question=user_query)
     
     async def answer_with_web_search(
         self,

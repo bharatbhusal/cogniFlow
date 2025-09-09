@@ -2,8 +2,10 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends, s
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.document import DocumentRepository
+from app.repositories.message import MessageRepository
 from app.services.project_service import ProjectService
 from app.types.query import QueryRequest
+from app.types.message import MessageCreate
 from app.types.user import AuthJWTTokenDict
 from app.middlewares.auth_middleware import get_current_user
 from app.config.db import get_db
@@ -239,17 +241,36 @@ async def query_project(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Query documents within a specific project using semantic search
+    Query documents within a specific project using semantic search with conversation history
     
     Args:
         project_id: ID of the project to query
-        query: Search query text
-        n_results: Number of results to return (default: 5)
+        request: JSON request body containing query
     """
     query = request.query
     try:
         # Verify user has access to the project
         await ProjectService.get_project_details(db, project_id, user["id"])
+        
+        # Get previous messages for conversation history (last 10 messages)
+        previous_messages = await MessageRepository.get_by_project_id(db, project_id)
+        conversation_history = []
+        
+        # Take last 10 messages and reverse to chronological order
+        for msg in previous_messages[:10]:
+            conversation_history.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+        
+        # Save user query as a message
+        user_message = {
+            "project_id": project_id,
+            "content": query,
+            "role": "user"
+        }
+
+        await MessageRepository.create(db, user_message)
         
         # Get ChromaDB chunk IDs for the project
         chromadb_chunk_ids = await DocumentRepository.get_project_chromadb_chunk_ids(db, project_id)
@@ -260,22 +281,38 @@ async def query_project(
                 error_code="NO_DOCUMENTS_FOUND",
                 status_code=status.HTTP_404_NOT_FOUND
             )
+        print("\n\nConversation History:", conversation_history, "\n\n")
         
         # Query the knowledge base
         context_chunks = await knowledge_base_service.retrieve_relevant_context_by_ids(
             query=query,
             chromadb_chunk_ids=chromadb_chunk_ids
         )
-        retrived_context = [each["text"] for each in context_chunks]
+        retrieved_context = [each["text"] for each in context_chunks]
 
-        llm_response = await openai_service.run_rag_pipeline(user_query=query, retrieved_context=retrived_context)
+        # Run RAG pipeline with conversation history
+        llm_response = await openai_service.run_rag_pipeline(
+            user_query=query,
+            retrieved_context=retrieved_context,
+            conversation_history=conversation_history
+        )
+        
+        # Save assistant response as a message
+        assistant_message  = {
+            "project_id": project_id,
+            "content": llm_response["response_text"],
+            "role": "assistant"
+        }
+        await MessageRepository.create(db, assistant_message)
         
         return create_success_response(
             message="Query executed successfully",
             data={
                 "query": query,
                 "project_id": project_id,
-                "llm_response": llm_response["response_text"]
+                "llm_response": llm_response["response_text"],
+                "conversation_history_included": len(conversation_history) > 0,
+                "context_sources_count": len(retrieved_context)
             }
         )
         

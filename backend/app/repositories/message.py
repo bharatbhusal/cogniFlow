@@ -3,7 +3,8 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.models.message import Message
-from app.types.message import MessageCreate, MessageUpdate
+from app.types.message import MessageCreate, MessageUpdate, MessageCreateDict
+from typing import List, Dict, Any
 
 class MessageRepository:
     @staticmethod
@@ -14,16 +15,15 @@ class MessageRepository:
     @staticmethod
     async def get_by_project_id(db: AsyncSession, project_id: str) -> List[Message]:
         result = await db.execute(
-            select(Message)
-            .options(selectinload(Message.project))
+            select(Message) 
             .where(Message.project_id == project_id)
             .order_by(Message.created_at.desc())
         )
         return result.scalars().all()
 
     @staticmethod
-    async def create(db: AsyncSession, message: MessageCreate) -> Message:
-        db_message = Message(**message.model_dump())
+    async def create(db: AsyncSession, message: MessageCreateDict) -> Message:
+        db_message = Message(**message)
         db.add(db_message)
         await db.commit()
         await db.refresh(db_message)
