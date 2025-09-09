@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.models.project import Project
-from app.types.project import ProjectBase
+from app.types.project import ProjectBase, ProjectCreateDict
 
 class ProjectRepository:
     @staticmethod
@@ -30,8 +30,8 @@ class ProjectRepository:
         return result.scalars().all()
 
     @staticmethod
-    async def create(db: AsyncSession, project: ProjectBase) -> Project:
-        db_project = Project(**project.model_dump())
+    async def create(db: AsyncSession, project: ProjectCreateDict) -> Project:
+        db_project = Project(**project)
         db.add(db_project)
         await db.commit()
         await db.refresh(db_project)

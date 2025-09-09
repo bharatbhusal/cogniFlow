@@ -5,6 +5,7 @@ from pathlib import Path
 import fitz as PyMuPDF 
 import chromadb
 from chromadb.config import Settings
+from io import BytesIO
 from app.config.env import get_settings
 from app.services.openai_service import openai_service
 from app.types.responses import (
@@ -49,6 +50,64 @@ class KnowledgeBaseService:
                 details=str(e)
             )
     
+    async def process_document_from_memory(
+        self,
+        content: bytes,
+        filename: str,
+        document_id: str,
+        project_id: str,
+        chunk_size: int = 1000,
+        chunk_overlap: int = 200
+    ) -> Dict[str, Any]:
+        """Process a PDF document from memory content"""
+        try:
+            # Extract text from PDF content
+            text_content, pages = await self.extract_text_from_pdf_memory(content)
+            
+            # Chunk the text
+            chunks = self.chunk_text_recursively(
+                text_content, 
+                chunk_size=chunk_size, 
+                chunk_overlap=chunk_overlap
+            )
+            
+            if not chunks:
+                raise DocumentProcessingError(
+                    message="No text chunks generated from document",
+                    details=f"Document {filename} produced no processable content"
+                )
+            
+            # Generate embeddings for chunks
+            embeddings = await openai_service.generate_embeddings(chunks)
+            
+            # Store in vector database
+            chunk_ids = await self.store_chunks_in_vectordb(
+                chunks=chunks,
+                embeddings=embeddings,
+                document_id=document_id,
+                metadata={
+                    "filename": filename,
+                    "project_id": project_id,
+                    "pages": pages,
+                    "processing_timestamp": str(uuid.uuid4())
+                }
+            )
+            
+            return {
+                "document_id": document_id,
+                "filename": filename,
+                "pages": pages,
+                "total_chunks": len(chunks),
+                "chunk_ids": chunk_ids,
+                "status": "completed"
+            }
+            
+        except Exception as e:
+            raise DocumentIngestionError(
+                message="Document ingestion failed",
+                details=f"Error processing document {filename}: {str(e)}"
+            )
+    
     async def process_document(
         self,
         file_path: str,
@@ -56,7 +115,7 @@ class KnowledgeBaseService:
         chunk_size: int = 1000,
         chunk_overlap: int = 200
     ) -> Dict[str, Any]:
-        """Process a document through the complete ingestion pipeline"""
+        """Process a document from file path (legacy method)"""
         try:
             # Extract text from PDF
             text_content = await self.extract_text_from_pdf(file_path)
@@ -92,8 +151,41 @@ class KnowledgeBaseService:
                 details=f"Error processing document {document_id}: {str(e)}"
             )
     
+    async def extract_text_from_pdf_memory(self, content: bytes) -> tuple[str, int]:
+        """Extract text content from PDF bytes using PyMuPDF"""
+        try:
+            # Open PDF from memory
+            pdf_document = PyMuPDF.open(stream=content, filetype="pdf")
+            text_content = ""
+            pages = pdf_document.page_count
+            
+            # Extract text from each page
+            for page_num in range(pages):
+                page = pdf_document.load_page(page_num)
+                page_text = page.get_text()
+                if page_text.strip():
+                    text_content += f"\n--- Page {page_num + 1} ---\n{page_text}\n"
+            
+            pdf_document.close()
+            
+            if not text_content.strip():
+                raise TextExtractionError(
+                    message="No text content extracted from PDF",
+                    details="The PDF may be image-based or corrupted"
+                )
+            
+            return text_content.strip(), pages
+            
+        except Exception as e:
+            if isinstance(e, TextExtractionError):
+                raise
+            raise TextExtractionError(
+                message="Failed to extract text from PDF",
+                details=str(e)
+            )
+    
     async def extract_text_from_pdf(self, file_path: str) -> str:
-        """Extract text content from PDF using PyMuPDF"""
+        """Extract text content from PDF using PyMuPDF (legacy method)"""
         try:
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
@@ -246,7 +338,8 @@ class KnowledgeBaseService:
         self,
         query: str,
         n_results: int = 5,
-        document_ids: Optional[List[str]] = None
+        document_ids: Optional[List[str]] = None,
+        project_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Retrieve most relevant text chunks for a query"""
         try:
@@ -257,6 +350,8 @@ class KnowledgeBaseService:
             where_filter = None
             if document_ids:
                 where_filter = {"document_id": {"$in": document_ids}}
+            elif project_id:
+                where_filter = {"project_id": project_id}
             
             # Query ChromaDB
             results = self.collection.query(
@@ -274,7 +369,8 @@ class KnowledgeBaseService:
                         "text": doc,
                         "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
                         "similarity": 1 - results["distances"][0][i] if results["distances"] else 0,
-                        "source": results["metadatas"][0][i].get("file_path", "unknown") if results["metadatas"] else "unknown"
+                        "source": results["metadatas"][0][i].get("filename", "unknown") if results["metadatas"] else "unknown",
+                        "document_id": results["metadatas"][0][i].get("document_id", "unknown") if results["metadatas"] else "unknown"
                     })
             
             return context_chunks
@@ -282,6 +378,78 @@ class KnowledgeBaseService:
         except Exception as e:
             raise ContextRetrievalError(
                 message="Failed to retrieve relevant context",
+                details=str(e)
+            )
+    
+    async def get_project_status(self, project_id: str) -> Dict[str, Any]:
+        """Get status of all documents in a project"""
+        try:
+            # Query ChromaDB for all chunks in this project
+            results = self.collection.get(
+                where={"project_id": project_id},
+                include=["documents", "metadatas"]
+            )
+            
+            if not results["documents"]:
+                return {
+                    "project_id": project_id,
+                    "status": "not_found",
+                    "total_documents": 0,
+                    "total_chunks": 0,
+                    "documents": []
+                }
+            
+            # Group by document_id
+            documents = {}
+            for i, metadata in enumerate(results["metadatas"]):
+                doc_id = metadata.get("document_id", "unknown")
+                if doc_id not in documents:
+                    documents[doc_id] = {
+                        "document_id": doc_id,
+                        "filename": metadata.get("filename", "unknown"),
+                        "pages": metadata.get("pages", 0),
+                        "chunks": 0
+                    }
+                documents[doc_id]["chunks"] += 1
+            
+            return {
+                "project_id": project_id,
+                "status": "completed",
+                "total_documents": len(documents),
+                "total_chunks": len(results["documents"]),
+                "documents": list(documents.values())
+            }
+            
+        except Exception as e:
+            raise RetrievalError(
+                message="Failed to get project status",
+                details=str(e)
+            )
+    
+    async def get_project_documents(self, project_id: str) -> List[Dict[str, Any]]:
+        """Get all document IDs and metadata for a project"""
+        try:
+            results = self.collection.get(
+                where={"project_id": project_id},
+                include=["metadatas"]
+            )
+            
+            # Get unique documents
+            documents = {}
+            for metadata in results["metadatas"]:
+                doc_id = metadata.get("document_id")
+                if doc_id and doc_id not in documents:
+                    documents[doc_id] = {
+                        "document_id": doc_id,
+                        "filename": metadata.get("filename", "unknown"),
+                        "pages": metadata.get("pages", 0)
+                    }
+            
+            return list(documents.values())
+            
+        except Exception as e:
+            raise RetrievalError(
+                message="Failed to get project documents",
                 details=str(e)
             )
     
@@ -311,6 +479,27 @@ class KnowledgeBaseService:
         except Exception as e:
             raise RetrievalError(
                 message="Failed to get document status",
+                details=str(e)
+            )
+    
+    async def delete_project(self, project_id: str) -> bool:
+        """Delete all documents and chunks for a project"""
+        try:
+            # Get all chunk IDs for this project
+            results = self.collection.get(
+                where={"project_id": project_id},
+                include=["metadatas"]
+            )
+            
+            if results["ids"]:
+                self.collection.delete(ids=results["ids"])
+                return True
+            
+            return False
+            
+        except Exception as e:
+            raise VectorStoreError(
+                message="Failed to delete project",
                 details=str(e)
             )
     

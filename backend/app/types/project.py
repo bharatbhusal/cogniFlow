@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
+from typing_extensions import TypedDict
 
 # Project Pydantic models
 class ProjectBase(BaseModel):
@@ -14,3 +15,7 @@ class ProjectResponse(ProjectBase):
 
     class Config:
         orm_mode = True
+class ProjectCreateDict(TypedDict):
+    name: str
+    description: Optional[str] = ""
+    owner_id: str
