@@ -90,7 +90,7 @@ class ProjectService:
                     for msg in (project.messages or [])
                 ],
                 "messages_count": len(project.messages) if project.messages else 0,
-                "total_documents": len(project.documents) if project.documents else 0,
+                "documents_count": len(project.documents) if project.documents else 0,
                 "created_at": (
                     project.created_at.isoformat() if project.created_at else None
                 ),
