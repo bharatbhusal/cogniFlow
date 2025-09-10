@@ -155,6 +155,7 @@ class ProjectService:
                                 ),
                             })
                             continue
+                        file_url = file_upload_result.get("data", {}).get("url")
                         pdf_file.file.seek(0)
                         
                         content = await pdf_file.read()
@@ -181,7 +182,7 @@ class ProjectService:
                             "content_hash": content_hash,
                             "pages": processing_result.get("pages", 0),
                             "total_chunks": processing_result.get("total_chunks", 0),
-                            "file_url": file_upload_result.get("data", {}).get("url"),
+                            "file_url": file_url,
                         }
                         await DocumentRepository.create(db, document_data)
 
@@ -192,7 +193,7 @@ class ProjectService:
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
                                 "total_chunks": processing_result.get("total_chunks", 0),
-                                "file_url": file_upload_result.get("data", {}).get("url"),
+                                "file_url": file_url,
                                 "status": "completed",
                             }
                         )
@@ -306,6 +307,7 @@ class ProjectService:
                             })
                             continue
                         
+                        file_url = file_upload_result.get("data", {}).get("url")
                         pdf_file.file.seek(0)
 
                         content = await pdf_file.read()
@@ -347,7 +349,7 @@ class ProjectService:
                             "content_hash": content_hash,
                             "pages": processing_result.get("pages", 0),
                             "total_chunks": processing_result.get("total_chunks", 0),
-                            "file_url": file_upload_result.get("data", {}).get("url"),
+                            "file_url": file_url,
                         }
                         await DocumentRepository.create(db, document_data)
 
@@ -358,7 +360,7 @@ class ProjectService:
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
                                 "total_chunks": processing_result.get("total_chunks", 0),
-                                "file_url": file_upload_result.get("data", {}).get("url"),
+                                "file_url": file_url,
                                 "status": "added",
                             }
                         )
