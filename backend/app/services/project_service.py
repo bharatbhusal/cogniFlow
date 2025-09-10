@@ -83,6 +83,7 @@ class ProjectService:
                     {
                         "id": msg.id,
                         "content": msg.content,
+                        "role": msg.role,
                         "created_at": msg.created_at.isoformat()
                         if msg.created_at
                         else None,

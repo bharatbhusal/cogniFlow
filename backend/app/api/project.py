@@ -317,14 +317,14 @@ async def query_project(
             "content": llm_response["response_text"],
             "role": "assistant",
         }
-        await MessageRepository.create(db, assistant_message)
+        created_message = await MessageRepository.create(db, assistant_message)
 
         return create_success_response(
             message="Query executed successfully",
             data={
                 "query": query,
                 "project_id": project_id,
-                "llm_response": llm_response["response_text"],
+                "response": {"id": created_message.id, "content":created_message.content, "created_at": created_message.created_at.isoformat(), "role": created_message.role},
                 "conversation_history_included": len(conversation_history) > 0,
                 "context_sources_count": len(retrieved_context),
             },
