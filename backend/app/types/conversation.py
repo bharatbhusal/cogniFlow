@@ -1,9 +1,10 @@
 from pydantic import BaseModel
 from typing import List
 
+
 class ConversationMessage(BaseModel):
     id: str
-    role: str   # "user" or "assistant"
+    role: str  # "user" or "assistant"
     content: str
     created_at: str
 

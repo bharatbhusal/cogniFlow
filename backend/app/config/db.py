@@ -33,6 +33,7 @@ AsyncSessionLocal = sessionmaker(
     autocommit=False,
 )
 
+
 # Dependency function to get database session
 async def get_db() -> AsyncSession:
     """
@@ -48,6 +49,7 @@ async def get_db() -> AsyncSession:
         finally:
             await session.close()
 
+
 # Function to create all tables (for testing/initialization)
 async def create_tables():
     """Create all database tables"""
@@ -59,6 +61,7 @@ async def create_tables():
         logger.error(f"Error creating tables: {e}")
         raise
 
+
 # Function to drop all tables (for testing)
 async def drop_tables():
     """Drop all database tables"""
@@ -69,6 +72,7 @@ async def drop_tables():
     except Exception as e:
         logger.error(f"Error dropping tables: {e}")
         raise
+
 
 # Function to check database connection
 async def check_db_connection():

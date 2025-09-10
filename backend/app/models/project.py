@@ -1,7 +1,8 @@
-from sqlalchemy import (Column, String, DateTime, ForeignKey, Text, func, Index)
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func, Index
 from sqlalchemy.orm import relationship
 from app.config.db import Base
 from app.utils.cuid_str import cuid_str
+
 
 class Project(Base):
     __tablename__ = "projects"
@@ -15,5 +16,9 @@ class Project(Base):
 
     # Relationships
     owner = relationship("User", back_populates="projects")
-    documents = relationship("Document", back_populates="project", cascade="all, delete-orphan")
-    messages = relationship("Message", back_populates="project", cascade="all, delete-orphan")
+    documents = relationship(
+        "Document", back_populates="project", cascade="all, delete-orphan"
+    )
+    messages = relationship(
+        "Message", back_populates="project", cascade="all, delete-orphan"
+    )

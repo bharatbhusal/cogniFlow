@@ -1,8 +1,9 @@
-from typing import Dict, Optional
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.user import User
-from app.types.user import UserRegister,UserRegisterDict
+from app.types.user import UserRegisterDict
+
 
 class UserRepository:
     @staticmethod
@@ -17,8 +18,8 @@ class UserRepository:
 
     @staticmethod
     async def create(db: AsyncSession, user: UserRegisterDict) -> User:
-        db_user = User(**user) 
-        db.add(db_user)        
+        db_user = User(**user)
+        db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
-        return db_user 
+        return db_user

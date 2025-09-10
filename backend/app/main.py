@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -20,21 +21,25 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting CogniFlow API...")
-    
+
     # Check database connection
     logger.info("Checking database connection...")
     db_connected = await check_db_connection()
-    
+
     if not db_connected:
         if settings.DEBUG:
-            logger.warning("⚠️  Database connection failed in DEBUG mode - continuing without DB")
+            logger.warning(
+                "⚠️  Database connection failed in DEBUG mode - continuing without DB"
+            )
             logger.warning("Some features may not work properly without database")
         else:
             logger.error("Failed to connect to database!")
-            raise Exception("Database connection failed. Please check your database configuration.")
+            raise Exception(
+                "Database connection failed. Please check your database configuration."
+            )
     else:
         logger.info("✓ Database connection successful")
-        
+
         # Create tables if they don't exist (in debug mode)
         if settings.DEBUG:
             logger.info("Debug mode: Ensuring database tables exist...")
@@ -44,20 +49,21 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Table creation failed: {e}")
                 raise Exception(f"Database table creation failed: {e}")
-    
+
     logger.info("🚀 CogniFlow API startup complete")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down CogniFlow API...")
     logger.info("👋 CogniFlow API shutdown complete")
+
 
 app = FastAPI(
     title="CogniFlow API",
     description="AI-driven workflow automation platform",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
