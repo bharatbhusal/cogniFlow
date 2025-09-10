@@ -79,6 +79,16 @@ class ProjectService:
                     }
                     for doc in (project.documents or [])
                 ],
+                "messages": [
+                    {
+                        "id": msg.id,
+                        "content": msg.content,
+                        "created_at": msg.created_at.isoformat()
+                        if msg.created_at
+                        else None,
+                    }
+                    for msg in (project.messages or [])
+                ],
                 "messages_count": len(project.messages) if project.messages else 0,
                 "total_documents": len(project.documents) if project.documents else 0,
                 "created_at": (
