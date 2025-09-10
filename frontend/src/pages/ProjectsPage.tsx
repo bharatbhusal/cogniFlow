@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Modal } from "../components/ui/Modal";
@@ -84,7 +85,12 @@ export const ProjectsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <motion.div
+      className="min-h-screen bg-gray-50"
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+    >
       <ToastContainer position="top-right" autoClose={3000} />
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow">
@@ -239,7 +245,8 @@ export const ProjectsPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      <p>Documents: {project.document_count || 0}</p>
+                      <p>Documents: {project.documents_count || 0}</p>
+                      <p>Messages: {project.messages_count || 0}</p>
                       <p>
                         Created:{" "}
                         {new Date(project.created_at).toLocaleDateString()}
@@ -332,6 +339,6 @@ export const ProjectsPage: React.FC = () => {
           </div>
         )}
       </Modal>
-    </div>
+    </motion.div>
   );
 };

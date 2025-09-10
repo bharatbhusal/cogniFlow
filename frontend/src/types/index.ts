@@ -36,7 +36,8 @@ export interface Project {
   user_id: string;
   created_at: string;
   updated_at: string;
-  document_count?: number;
+  documents_count?: number;
+  messages_count?: number;
   documents?: Document[];
   messages?: Message[];
 }
@@ -53,8 +54,8 @@ export interface Document {
 }
 
 export interface Message {
-  id: string;
-  project_id: string;
+  id?: string;
+  project_id?: string;
   content: string;
   role: "user" | "assistant";
   created_at: string;

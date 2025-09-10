@@ -2,21 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProjects } from "../hooks/useProjects";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import { Card, CardContent } from "../components/ui/Card";
 import { Textarea } from "../components/ui/Textarea";
-
-interface Message {
-  id: string;
-  content: string;
-  role: "user" | "assistant";
-  timestamp: string;
-}
+import { Message, Project } from "../types";
 
 export const ChatPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, fetchOne } = useProjects();
+  const { fetchOne, query } = useProjects();
 
   const [project, setProject] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,16 +19,12 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     if (projectId) {
-      // Try to find project in current projects first
-      const existingProject = projects.find((p) => p.id === projectId);
-      if (existingProject) {
-        setProject(existingProject);
-      } else {
-        // Fetch project if not found
-        fetchOne(projectId).then(setProject);
-      }
+      fetchOne(projectId).then((res) => {
+        setProject(res.payload);
+        setMessages((res.payload as Project).messages || []);
+      });
     }
-  }, [projectId, projects, fetchOne]);
+  }, [projectId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -49,23 +38,21 @@ export const ChatPage: React.FC = () => {
       id: Date.now().toString(),
       content: inputMessage,
       role: "user",
-      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsLoading(true);
 
-    // Simulate AI response (replace with actual API call)
     setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: `I understand you're asking about: "${userMessage.content}". This is a simulated response. In a real implementation, this would connect to your AI service.`,
-        role: "assistant",
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsLoading(false);
+      query(projectId!, { query: userMessage.content }).then((res) => {
+        setMessages((prev) => [
+          ...prev,
+          (res.payload as any).response as Message,
+        ]);
+        setIsLoading(false);
+      });
     }, 1000);
   };
 
@@ -120,7 +107,7 @@ export const ChatPage: React.FC = () => {
                   <div className="space-y-2 text-sm">
                     <p>
                       <span className="font-medium">Documents:</span>{" "}
-                      {project.document_count || 0}
+                      {project.documents_count || 0}
                     </p>
                     <p>
                       <span className="font-medium">Created:</span>{" "}
@@ -181,7 +168,7 @@ export const ChatPage: React.FC = () => {
                   >
                     <p className="text-sm">{message.content}</p>
                     <p className="text-xs opacity-70 mt-1">
-                      {new Date(message.timestamp).toLocaleTimeString()}
+                      {new Date(message.created_at).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>

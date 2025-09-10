@@ -1,4 +1,5 @@
 import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ModalProps {
   isOpen: boolean;
@@ -17,22 +18,44 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div
-        className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 relative w-full max-w-lg ${
-          width || ""
-        }`}
-      >
-        {title && <h3 className="text-xl font-semibold mb-4">{title}</h3>}
-        <button
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          onClick={onClose}
-          aria-label="Close"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
-          &times;
-        </button>
-        {children}
-      </div>
-    </div>
+          <motion.div
+            className={`bg-white rounded-xl shadow-2xl p-8 relative w-full max-w-lg ${
+              width || ""
+            }`}
+            initial={{ scale: 0.95, y: 40, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.95, y: 40, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            style={{
+              boxShadow:
+                "0 8px 32px 0 rgba(60, 120, 60, 0.18), 0 1.5px 6px 0 rgba(0,0,0,0.08)",
+            }}
+          >
+            {title && (
+              <h3 className="text-2xl font-semibold mb-4 text-primary">
+                {title}
+              </h3>
+            )}
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              onClick={onClose}
+              aria-label="Close"
+              style={{ fontSize: 24 }}
+            >
+              &times;
+            </button>
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
