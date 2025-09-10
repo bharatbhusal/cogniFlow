@@ -18,9 +18,6 @@ class ApiClient {
     this.client = axios.create({
       baseURL,
       timeout: 30000,
-      headers: {
-        "Content-Type": "application/json",
-      },
     });
 
     // Request interceptor to add auth token
