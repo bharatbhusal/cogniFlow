@@ -139,7 +139,7 @@ class ProjectService:
             project = await ProjectRepository.create(db, project_data)
 
             # Process PDF files
-            processed_files = []
+            documents = []
             if pdf_files:
                 for pdf_file in pdf_files:
                     try:
@@ -170,7 +170,7 @@ class ProjectService:
                         }
                         await DocumentRepository.create(db, document_data)
 
-                        processed_files.append(
+                        documents.append(
                             {
                                 "chroma_document_id": document_id,
                                 "filename": pdf_file.filename,
@@ -187,7 +187,7 @@ class ProjectService:
                     except Exception as e:
                         # If document processing fails, we should still return the project
                         # but indicate which files failed
-                        processed_files.append(
+                        documents.append(
                             {
                                 "filename": pdf_file.filename,
                                 "status": "failed",
@@ -199,8 +199,8 @@ class ProjectService:
                 "project_id": project.id,
                 "name": project.name,
                 "description": project.description,
-                "total_files": len(processed_files),
-                "processed_files": processed_files,
+                "total_files": len(documents),
+                "documents": documents,
             }
 
         except HTTPException:
