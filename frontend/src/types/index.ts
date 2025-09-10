@@ -24,8 +24,7 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-	access_token: string;
-	user: User;
+	data: { access_token: string; user: User };
 }
 
 // Project Types

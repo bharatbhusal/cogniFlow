@@ -42,6 +42,12 @@ export const ProjectsPage: React.FC = () => {
 		fetchProjects();
 	}, [fetchProjects]);
 
+	useEffect(() => {
+		if (error) {
+			toast.error(error);
+		}
+	}, [error]);
+
 	const handleCreateProject = async (data: {
 		name: string;
 		description: string;
@@ -49,7 +55,6 @@ export const ProjectsPage: React.FC = () => {
 	}) => {
 		try {
 			await createProject(data);
-
 			setShowCreateModal(false);
 			toast.success("Project created successfully!");
 		} catch (error) {
@@ -58,7 +63,6 @@ export const ProjectsPage: React.FC = () => {
 	};
 
 	const handleDeleteProject = async (projectId: string) => {
-		toast.info("Deleting project...");
 		try {
 			await deleteProject(projectId);
 			toast.success("Project deleted successfully!");
@@ -87,7 +91,6 @@ export const ProjectsPage: React.FC = () => {
 				damping: 20,
 			}}
 		>
-			<ToastContainer position="top-right" autoClose={3000} />
 			{/* Header */}
 			<header className="bg-white dark:bg-gray-800 shadow">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -129,12 +132,7 @@ export const ProjectsPage: React.FC = () => {
 						/>
 					)}
 
-					{/* Error Display */}
-					{error && (
-						<div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
-							{error}
-						</div>
-					)}
+					{/* Error Display removed; use toastify for errors */}
 
 					{/* Projects Grid */}
 					{loading && projects.length === 0 ? (
