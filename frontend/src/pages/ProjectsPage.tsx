@@ -9,8 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useProjects } from "../hooks/useProjects";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Label } from "../components/ui/Label";
 import {
 	Card,
 	CardContent,
@@ -18,7 +16,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "../components/ui/Card";
-import { Textarea } from "../components/ui/Textarea";
 
 export const ProjectsPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -40,22 +37,19 @@ export const ProjectsPage: React.FC = () => {
 		useState(false);
 	const [selectedProject, setSelectedProject] =
 		useState<any>(null);
-	const [newProject, setNewProject] = useState({
-		name: "",
-		description: "",
-		files: [] as File[],
-	});
 
 	useEffect(() => {
 		fetchProjects();
 	}, [fetchProjects]);
 
-	const handleCreateProject = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const handleCreateProject = async (data: {
+		name: string;
+		description: string;
+		pdf_files: File[];
+	}) => {
 		try {
-			// You may need to handle file upload to backend here
-			await createProject(newProject);
-			setNewProject({ name: "", description: "", files: [] });
+			await createProject(data);
+
 			setShowCreateModal(false);
 			toast.success("Project created successfully!");
 		} catch (error) {
@@ -80,28 +74,6 @@ export const ProjectsPage: React.FC = () => {
 	const handleLogout = () => {
 		logout();
 		navigate("/login");
-	};
-
-	const handleInputChange = (
-		e: React.ChangeEvent<
-			HTMLInputElement | HTMLTextAreaElement
-		>
-	) => {
-		const { name, value } = e.target;
-		setNewProject((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-	};
-
-	const handleCreateModalCreate = (data: {
-		name: string;
-		description: string;
-		files: File[];
-	}) => {
-		setNewProject(data);
-		// Submit form
-		handleCreateProject({ preventDefault: () => {} } as any);
 	};
 
 	return (
@@ -152,7 +124,7 @@ export const ProjectsPage: React.FC = () => {
 						<CreateProjectModal
 							isOpen={showCreateModal}
 							onClose={() => setShowCreateModal(false)}
-							onCreate={handleCreateModalCreate}
+							onCreate={handleCreateProject}
 							loading={loading}
 						/>
 					)}

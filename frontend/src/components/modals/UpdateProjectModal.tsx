@@ -3,7 +3,6 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
-import { Textarea } from "../ui/Textarea";
 
 interface UpdateProjectModalProps {
 	isOpen: boolean;
@@ -11,12 +10,12 @@ interface UpdateProjectModalProps {
 	project: {
 		name: string;
 		description: string;
-		files?: File[];
+		pdf_files?: File[];
 	};
 	onUpdate: (data: {
-		name: string;
-		description: string;
-		files: File[];
+		name?: string;
+		description?: string;
+		pdf_files: File[];
 	}) => void;
 }
 
@@ -28,7 +27,7 @@ export const UpdateProjectModal: React.FC<
 		project.description
 	);
 	const [files, setFiles] = useState<File[]>(
-		project.files || []
+		project.pdf_files || []
 	);
 	const [newFiles, setNewFiles] = useState<File[]>([]);
 
@@ -58,7 +57,7 @@ export const UpdateProjectModal: React.FC<
 		onUpdate({
 			name,
 			description,
-			files: [...files, ...newFiles],
+			pdf_files: [...files, ...newFiles],
 		});
 	};
 
@@ -71,6 +70,26 @@ export const UpdateProjectModal: React.FC<
 			<form onSubmit={handleSubmit} className="space-y-4">
 				<div className="space-y-2"></div>
 				<div className="space-y-2">
+					<Label htmlFor="update-name">Project Name</Label>
+					<Input
+						id="update-name"
+						name="update-name"
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+					/>
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="update-description">
+						Project Description
+					</Label>
+					<Input
+						id="update-description"
+						name="update-description"
+						value={description}
+						onChange={(e) => setDescription(e.target.value)}
+					/>
+				</div>
+				<div className="space-y-2">
 					<Label htmlFor="update-files">
 						Add More PDF Files
 					</Label>
@@ -81,6 +100,7 @@ export const UpdateProjectModal: React.FC<
 						accept="application/pdf"
 						multiple
 						onChange={handleFileChange}
+						className="hover:cursor-pointer"
 					/>
 					<div className="flex flex-wrap gap-2 mt-2">
 						{[...files, ...newFiles].map((file, idx) => (

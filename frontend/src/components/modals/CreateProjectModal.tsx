@@ -11,7 +11,7 @@ interface CreateProjectModalProps {
 	onCreate: (data: {
 		name: string;
 		description: string;
-		files: File[];
+		pdf_files: File[];
 	}) => void;
 	loading?: boolean;
 }
@@ -43,7 +43,7 @@ export const CreateProjectModal: React.FC<
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		onCreate({ name, description, files });
+		onCreate({ name, description, pdf_files: files });
 	};
 
 	return (

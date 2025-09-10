@@ -6,13 +6,18 @@ import { Button } from "../components/ui/Button";
 import { Card, CardContent } from "../components/ui/Card";
 import { Textarea } from "../components/ui/Textarea";
 import { Message, Project } from "../types";
+import { toast } from "react-toastify";
 
 export const ChatPage: React.FC = () => {
 	const [showUpdateModal, setShowUpdateModal] =
 		useState(false);
 	const { projectId } = useParams<{ projectId: string }>();
 	const navigate = useNavigate();
-	const { fetchOne, query } = useProjects();
+	const {
+		fetchOne,
+		query,
+		update: updateProject,
+	} = useProjects();
 
 	const [project, setProject] = useState<any>(null);
 	const [messages, setMessages] = useState<Message[]>([]);
@@ -61,6 +66,18 @@ export const ChatPage: React.FC = () => {
 				}
 			);
 		}, 1000);
+	};
+
+	const handleUpdateProject = async (data: {
+		pdf_files: File[];
+	}) => {
+		try {
+			await updateProject(projectId!, data);
+			setShowUpdateModal(false);
+			toast.success("Project updated successfully!");
+		} catch (error) {
+			toast.error("Failed to update project!");
+		}
 	};
 
 	const handleBackToProjects = () => {
@@ -239,10 +256,7 @@ export const ChatPage: React.FC = () => {
 					isOpen={showUpdateModal}
 					onClose={() => setShowUpdateModal(false)}
 					project={project}
-					onUpdate={(data) => {
-						// TODO: Implement update logic with file upload
-						setShowUpdateModal(false);
-					}}
+					onUpdate={handleUpdateProject}
 				/>
 			)}
 		</div>
