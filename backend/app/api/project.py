@@ -40,7 +40,7 @@ async def create_project(
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-        result = await ProjectService.create_project_with_documents(
+        result = await ProjectService.create_project(
             db=db,
             name=name,
             user_id=user["id"],

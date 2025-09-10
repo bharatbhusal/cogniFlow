@@ -107,7 +107,7 @@ class ProjectService:
             )
 
     @staticmethod
-    async def create_project_with_documents(
+    async def create_project(
         db: AsyncSession,
         name: str,
         user_id: str,
@@ -188,6 +188,7 @@ class ProjectService:
 
                         processed_documents.append(
                             {
+                                "id": document_id,
                                 "chroma_document_id": document_id,
                                 "filename": pdf_file.filename,
                                 "size": len(content),
@@ -351,16 +352,16 @@ class ProjectService:
                             "total_chunks": processing_result.get("total_chunks", 0),
                             "file_url": file_url,
                         }
-                        await DocumentRepository.create(db, document_data)
+                        new_document = await DocumentRepository.create(db, document_data)
 
                         changes["new_files"].append(
                             {
-                                "document_id": document_id,
-                                "filename": pdf_file.filename,
+                                "id": new_document.id,
+                                "filename": new_document.title,
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
                                 "total_chunks": processing_result.get("total_chunks", 0),
-                                "file_url": file_url,
+                                "file_url": new_document.file_url,
                                 "status": "added",
                             }
                         )
