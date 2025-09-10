@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
+    POCKITY_API_URL: str = os.getenv("POCKITY_API_URL")
+    POCKITY_ACCESS_KEY_ID: str = os.getenv("POCKITY_ACCESS_KEY_ID")
+    POCKITY_SECRET_KEY: str = os.getenv("POCKITY_SECRET_KEY")
 
 def get_settings() -> Settings:
     return Settings()

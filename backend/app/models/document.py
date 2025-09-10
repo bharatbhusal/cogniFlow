@@ -16,6 +16,8 @@ class Document(Base):
     content_hash = Column(String, nullable=True, index=True)
     pages = Column(Integer, nullable=False, default=0)
     total_chunks = Column(Integer, nullable=False, default=0)
+    
+    file_url = Column(String, nullable=True)
 
     # Store ChromaDB chunk IDs as PostgreSQL array
     chroma_chunk_ids = Column(ARRAY(String), nullable=True)

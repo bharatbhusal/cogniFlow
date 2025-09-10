@@ -7,7 +7,7 @@ from app.repositories.document import DocumentRepository
 from app.services.knowledge_base import knowledge_base_service
 from app.types.responses import *
 from app.utils.cuid_str import cuid_str
-
+from app.utils.pockity import upload_file_to_pockity
 
 class ProjectService:
 
@@ -139,17 +139,31 @@ class ProjectService:
             project = await ProjectRepository.create(db, project_data)
 
             # Process PDF files
-            documents = []
+            processed_documents = []
             if pdf_files:
                 for pdf_file in pdf_files:
                     try:
+                        file_upload_result = upload_file_to_pockity(pdf_file.file, filename=pdf_file.filename)
+                        if not file_upload_result or file_upload_result.get("error"):
+                            processed_documents.append({
+                                "filename": pdf_file.filename,
+                                "status": "file_upload_failed",
+                                "error": (
+                                    file_upload_result.get("error", {}).get("message")
+                                    or file_upload_result.get("error", {}).get("name")
+                                    or "Unknown error"
+                                ),
+                            })
+                            continue
+                        pdf_file.file.seek(0)
+                        
                         content = await pdf_file.read()
                         content_hash = hashlib.md5(content).hexdigest()
                         document_id = cuid_str()
 
                         # Process document through knowledge base
                         processing_result = (
-                            await knowledge_base_service.process_document_from_memory(
+                            await knowledge_base_service.process_document(
                                 content=content,
                                 filename=pdf_file.filename,
                                 document_id=document_id,
@@ -167,18 +181,18 @@ class ProjectService:
                             "content_hash": content_hash,
                             "pages": processing_result.get("pages", 0),
                             "total_chunks": processing_result.get("total_chunks", 0),
+                            "file_url": file_upload_result.get("data", {}).get("url"),
                         }
                         await DocumentRepository.create(db, document_data)
 
-                        documents.append(
+                        processed_documents.append(
                             {
                                 "chroma_document_id": document_id,
                                 "filename": pdf_file.filename,
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
-                                "total_chunks": processing_result.get(
-                                    "total_chunks", 0
-                                ),
+                                "total_chunks": processing_result.get("total_chunks", 0),
+                                "file_url": file_upload_result.get("data", {}).get("url"),
                                 "status": "completed",
                             }
                         )
@@ -187,7 +201,7 @@ class ProjectService:
                     except Exception as e:
                         # If document processing fails, we should still return the project
                         # but indicate which files failed
-                        documents.append(
+                        processed_documents.append(
                             {
                                 "filename": pdf_file.filename,
                                 "status": "failed",
@@ -199,8 +213,8 @@ class ProjectService:
                 "project_id": project.id,
                 "name": project.name,
                 "description": project.description,
-                "total_files": len(documents),
-                "documents": documents,
+                "total_files": len(processed_documents),
+                "documents": processed_documents,
             }
 
         except HTTPException:
@@ -283,6 +297,17 @@ class ProjectService:
             if pdf_files:
                 for pdf_file in pdf_files:
                     try:
+                        file_upload_result = upload_file_to_pockity(pdf_file.file, filename=pdf_file.filename)
+                        if not file_upload_result or file_upload_result.get("error"):
+                            changes["new_files"].append({
+                                "filename": pdf_file.filename,
+                                "status": "file_upload_failed",
+                                "error": file_upload_result.get("error", {}).get("message") or file_upload_result.get("error", {}).get("name") or "Unknown error",
+                            })
+                            continue
+                        
+                        pdf_file.file.seek(0)
+
                         content = await pdf_file.read()
                         content_hash = hashlib.md5(content).hexdigest()
 
@@ -304,7 +329,7 @@ class ProjectService:
 
                         # Process document
                         processing_result = (
-                            await knowledge_base_service.process_document_from_memory(
+                            await knowledge_base_service.process_document(
                                 content=content,
                                 filename=pdf_file.filename,
                                 document_id=document_id,
@@ -322,6 +347,7 @@ class ProjectService:
                             "content_hash": content_hash,
                             "pages": processing_result.get("pages", 0),
                             "total_chunks": processing_result.get("total_chunks", 0),
+                            "file_url": file_upload_result.get("data", {}).get("url"),
                         }
                         await DocumentRepository.create(db, document_data)
 
@@ -331,9 +357,8 @@ class ProjectService:
                                 "filename": pdf_file.filename,
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
-                                "total_chunks": processing_result.get(
-                                    "total_chunks", 0
-                                ),
+                                "total_chunks": processing_result.get("total_chunks", 0),
+                                "file_url": file_upload_result.get("data", {}).get("url"),
                                 "status": "added",
                             }
                         )
