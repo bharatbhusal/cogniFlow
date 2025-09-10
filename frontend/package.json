@@ -16,15 +16,24 @@
 	"dependencies": {
 		"@reduxjs/toolkit": "^2.9.0",
 		"axios": "^1.11.0",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"react-redux": "^9.2.0",
-		"redux-persist": "^6.0.0"
+		"react-router-dom": "^7.8.2",
+		"redux-persist": "^6.0.0",
+		"tailwind-merge": "^3.3.1"
 	},
 	"devDependencies": {
+		"@types/node": "^24.3.1",
 		"@types/react": "^19.1.12",
 		"@types/react-dom": "^19.1.9",
+		"@types/react-router-dom": "^5.3.3",
 		"@vitejs/plugin-react": "^5.0.2",
+		"autoprefixer": "^10.4.20",
+		"postcss": "^8.4.41",
+		"tailwindcss": "^3.4.10",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.4",
 		"vite-plugin-top-level-await": "^1.6.0"
