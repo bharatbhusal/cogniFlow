@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
@@ -159,41 +160,33 @@ class ProjectService:
             }
             project = await ProjectRepository.create(db, project_data)
 
-            # Save workflow and node configs if provided
-            if workflow and isinstance(workflow, str) and len(workflow.strip())>0:
+            # Workflow and node config logic
+            workflow_flags = ProjectService._parse_workflow(workflow)
+            if workflow_flags["hasKb"]:
+                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
+                    "openai_api_key": kb_node_config_dict["openai_api_key"],
+                    "embedding_model_name": kb_node_config_dict["embedding_model_name"],
+                })
+            if workflow_flags["hasLlm"]:
+                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                from app.repositories.llm_node import LlmNodeRepository
+                await LlmNodeRepository.create(db=db, project_id=project.id, data={
+                    "openai_api_key": llm_node_config_dict["openai_api_key"],
+                    "llm_model_name": llm_node_config_dict["llm_model_name"],
+                })
+            if workflow_flags["hasWeb"]:
+                web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
+                from app.repositories.web_search_node import WebSearchNodeRepository
+                await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
+                    "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
+                })
+            if workflow and isinstance(workflow, str) and workflow.strip():
                 from app.repositories.workflow import WorkflowRepository
                 await WorkflowRepository.create(db=db, project_id=project.id, data={
                     "definition": workflow
                 })
-            if kb_node_config and isinstance(kb_node_config, str):
-                kb_node_config = json.loads(kb_node_config)
-                if (
-                    "openai_api_key" in kb_node_config and kb_node_config["openai_api_key"]
-                    and "embedding_model_name" in kb_node_config and kb_node_config["embedding_model_name"]
-                ):
-                    from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                    await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
-                        "openai_api_key": kb_node_config["openai_api_key"],
-                        "embedding_model_name": kb_node_config["embedding_model_name"],
-                    })
-            if llm_node_config and isinstance(llm_node_config, str):
-                llm_node_config = json.loads(llm_node_config)
-                if (
-                    "openai_api_key" in llm_node_config and llm_node_config["openai_api_key"]
-                    and "llm_model_name" in llm_node_config and llm_node_config["llm_model_name"]
-                ):
-                    from app.repositories.llm_node import LlmNodeRepository
-                    await LlmNodeRepository.create(db=db, project_id=project.id, data={
-                        "openai_api_key": llm_node_config["openai_api_key"],
-                        "llm_model_name": llm_node_config["llm_model_name"],
-                    })
-            if web_search_node_config and isinstance(web_search_node_config, str):
-                web_search_node_config = json.loads(web_search_node_config)
-                if "serpapi_api_key" in web_search_node_config and web_search_node_config["serpapi_api_key"]:
-                    from app.repositories.web_search_node import WebSearchNodeRepository
-                    await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
-                        "serpapi_api_key": web_search_node_config["serpapi_api_key"]
-                    })
 
             # Process PDF files
             processed_documents = []
@@ -214,12 +207,9 @@ class ProjectService:
                             continue
                         file_url = file_upload_result.get("data", {}).get("url")
                         pdf_file.file.seek(0)
-                        
                         content = await pdf_file.read()
                         content_hash = hashlib.md5(content).hexdigest()
                         document_id = cuid_str()
-
-                        # Process document through knowledge base
                         processing_result = (
                             await knowledge_base_service.process_document(
                                 content=content,
@@ -229,8 +219,6 @@ class ProjectService:
                                 chunk_overlap=200,
                             )
                         )
-
-                        # Save document to database
                         document_data = {
                             "chroma_document_id": document_id,
                             "title": pdf_file.filename,
@@ -242,7 +230,6 @@ class ProjectService:
                             "file_url": file_url,
                         }
                         await DocumentRepository.create(db, document_data)
-
                         processed_documents.append(
                             {
                                 "id": document_id,
@@ -255,11 +242,8 @@ class ProjectService:
                                 "status": "completed",
                             }
                         )
-
                         await pdf_file.seek(0)
                     except Exception as e:
-                        # If document processing fails, we should still return the project
-                        # but indicate which files failed
                         processed_documents.append(
                             {
                                 "title": pdf_file.filename,
@@ -267,7 +251,6 @@ class ProjectService:
                                 "error": str(e),
                             }
                         )
-
             return {
                 "id": project.id,
                 "name": project.name,
@@ -280,7 +263,6 @@ class ProjectService:
                     else None
                 ),
             }
-
         except HTTPException:
             raise
         except Exception as e:
@@ -319,7 +301,6 @@ class ProjectService:
                 update_data["name"] = name
             if description is not None:
                 update_data["description"] = description
-
             if update_data:
                 project = await ProjectRepository.update(db, project_id, update_data)
 
@@ -338,27 +319,15 @@ class ProjectService:
                 for doc_id in delete_document_ids:
                     document = await DocumentRepository.get_by_id(db, doc_id)
                     if document and document.project_id == project_id:
-                        # Delete from ChromaDB
-                        chromadb_deleted = knowledge_base_service.delete_document(
-                            doc_id
-                        )
-
-                        # Delete from PostgreSQL
+                        chromadb_deleted = knowledge_base_service.delete_document(doc_id)
                         postgres_deleted = await DocumentRepository.delete(db, doc_id)
-
-                        changes["deleted_files"].append(
-                            {
-                                "id": doc_id,
-                                "title": document.title,
-                                "deleted_from_chromadb": chromadb_deleted,
-                                "deleted_from_postgres": postgres_deleted,
-                                "status": (
-                                    "deleted"
-                                    if (chromadb_deleted and postgres_deleted)
-                                    else "partial_delete"
-                                ),
-                            }
-                        )
+                        changes["deleted_files"].append({
+                            "id": doc_id,
+                            "title": document.title,
+                            "deleted_from_chromadb": chromadb_deleted,
+                            "deleted_from_postgres": postgres_deleted,
+                            "status": "deleted" if (chromadb_deleted and postgres_deleted) else "partial_delete",
+                        })
                         changes["files_deleted"] += 1
 
             # Add new PDF files
@@ -373,30 +342,19 @@ class ProjectService:
                                 "error": file_upload_result.get("error", {}).get("message") or file_upload_result.get("error", {}).get("name") or "Unknown error",
                             })
                             continue
-                        
                         file_url = file_upload_result.get("data", {}).get("url")
                         pdf_file.file.seek(0)
-
                         content = await pdf_file.read()
                         content_hash = hashlib.md5(content).hexdigest()
-
-                        # Check for duplicates
-                        existing_doc = await DocumentRepository.get_by_project_and_hash(
-                            db, project_id, content_hash
-                        )
+                        existing_doc = await DocumentRepository.get_by_project_and_hash(db, project_id, content_hash)
                         if existing_doc:
-                            changes["new_files"].append(
-                                {
-                                    "title": pdf_file.filename,
-                                    "status": "duplicate_skipped",
-                                    "existing_document_id": existing_doc.id,
-                                }
-                            )
+                            changes["new_files"].append({
+                                "title": pdf_file.filename,
+                                "status": "duplicate_skipped",
+                                "existing_document_id": existing_doc.id,
+                            })
                             continue
-
                         document_id = cuid_str()
-
-                        # Process document
                         processing_result = (
                             await knowledge_base_service.process_document(
                                 content=content,
@@ -406,8 +364,6 @@ class ProjectService:
                                 chunk_overlap=200,
                             )
                         )
-
-                        # Save to database
                         document_data = {
                             "chroma_document_id": document_id,
                             "title": pdf_file.filename,
@@ -419,77 +375,60 @@ class ProjectService:
                             "file_url": file_url,
                         }
                         new_document = await DocumentRepository.create(db, document_data)
-
-                        changes["new_files"].append(
-                            {
-                                "id": new_document.id,
-                                "title": new_document.title,
-                                "size": len(content),
-                                "pages": processing_result.get("pages", 0),
-                                "total_chunks": processing_result.get("total_chunks", 0),
-                                "file_url": new_document.file_url,
-                                "status": "added",
-                            }
-                        )
+                        changes["new_files"].append({
+                            "id": new_document.id,
+                            "title": new_document.title,
+                            "size": len(content),
+                            "pages": processing_result.get("pages", 0),
+                            "total_chunks": processing_result.get("total_chunks", 0),
+                            "file_url": new_document.file_url,
+                            "status": "added",
+                        })
                         changes["files_added"] += 1
-
                         await pdf_file.seek(0)
                     except Exception as e:
-                        changes["new_files"].append(
-                            {
-                                "title": pdf_file.filename,
-                                "status": "failed",
-                                "error": str(e),
-                            }
-                        )
+                        changes["new_files"].append({
+                            "title": pdf_file.filename,
+                            "status": "failed",
+                            "error": str(e),
+                        })
 
-            # Update workflow and node configs if provided
-            if workflow and isinstance(workflow, str) and len(workflow.strip()) > 0:
+            # Workflow and node config logic
+            workflow_flags = ProjectService._parse_workflow(workflow)
+            if workflow_flags["hasKb"]:
+                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "openai_api_key": kb_node_config_dict["openai_api_key"],
+                    "embedding_model_name": kb_node_config_dict["embedding_model_name"],
+                })
+            if workflow_flags["hasLlm"]:
+                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                from app.repositories.llm_node import LlmNodeRepository
+                await LlmNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "openai_api_key": llm_node_config_dict["openai_api_key"],
+                    "llm_model_name": llm_node_config_dict["llm_model_name"],
+                })
+            if workflow_flags["hasWeb"]:
+                web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
+                from app.repositories.web_search_node import WebSearchNodeRepository
+                await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
+                })
+            if workflow and isinstance(workflow, str) and workflow.strip():
                 from app.repositories.workflow import WorkflowRepository
                 await WorkflowRepository.upsert(db=db, project_id=project_id, data={
                     "definition": workflow
                 })
-            if kb_node_config and isinstance(kb_node_config, str):
-                kb_node_config = json.loads(kb_node_config)
-                if (
-                    "openai_api_key" in kb_node_config and kb_node_config["openai_api_key"]
-                    and "embedding_model_name" in kb_node_config and kb_node_config["embedding_model_name"]
-                ):
-                    from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                    await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
-                        "openai_api_key": kb_node_config["openai_api_key"],
-                        "embedding_model_name": kb_node_config["embedding_model_name"],
-                    })
-            if llm_node_config and isinstance(llm_node_config, str):
-                llm_node_config = json.loads(llm_node_config)
-                if (
-                    "openai_api_key" in llm_node_config and llm_node_config["openai_api_key"]
-                    and "llm_model_name" in llm_node_config and llm_node_config["llm_model_name"]
-                ):
-                    from app.repositories.llm_node import LlmNodeRepository
-                    await LlmNodeRepository.upsert(db=db, project_id=project_id, data={
-                        "openai_api_key": llm_node_config["openai_api_key"],
-                        "llm_model_name": llm_node_config["llm_model_name"],
-                    })
-            if web_search_node_config and isinstance(web_search_node_config, str):
-                web_search_node_config = json.loads(web_search_node_config)
-                if "serpapi_api_key" in web_search_node_config and web_search_node_config["serpapi_api_key"]:
-                    from app.repositories.web_search_node import WebSearchNodeRepository
-                    await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
-                        "serpapi_api_key": web_search_node_config["serpapi_api_key"]
-                    })
 
             # Get updated project info
             updated_project = await ProjectRepository.get_by_id(db, project_id)
-
             return {
                 "id": project_id,
                 "name": updated_project.name,
                 "description": updated_project.description,
                 "updates": changes,
-
             }
-
         except HTTPException:
             raise
         except Exception as e:
@@ -542,3 +481,44 @@ class ProjectService:
             raise HTTPException(
                 status_code=500, detail=f"Error deleting project: {str(e)}"
             )
+    
+    @staticmethod
+    def _parse_workflow(workflow: Optional[str]) -> Dict[str, bool]:
+        allowed_workflows = {"kb_llm", "kb_llm_web", "web", "llm_web", "llm", "web_llm"}
+        if not workflow or not isinstance(workflow, str) or not workflow.strip():
+            return {"hasKb": False, "hasLlm": False, "hasWeb": False}
+        if workflow not in allowed_workflows:
+            raise HTTPException(status_code=400, detail=f"Invalid workflow definition. Allowed values are: {', '.join(allowed_workflows)}")
+        parts = workflow.split("_")
+        return {
+            "hasKb": "kb" in parts,
+            "hasLlm": "llm" in parts,
+            "hasWeb": "web" in parts
+        }
+
+    @staticmethod
+    def _validate_kb_config(kb_node_config: Optional[str]):
+        if not (kb_node_config and isinstance(kb_node_config, str)):
+            raise HTTPException(status_code=400, detail="Knowledge Base node config required but not provided.")
+        kb_node_config = json.loads(kb_node_config)
+        if not ("openai_api_key" in kb_node_config and kb_node_config["openai_api_key"] and "embedding_model_name" in kb_node_config and kb_node_config["embedding_model_name"]):
+            raise HTTPException(status_code=400, detail="Knowledge Base node config is incomplete.")
+        return kb_node_config
+
+    @staticmethod
+    def _validate_llm_config(llm_node_config: Optional[str]):
+        if not (llm_node_config and isinstance(llm_node_config, str)):
+            raise HTTPException(status_code=400, detail="LLM node config required but not provided.")
+        llm_node_config = json.loads(llm_node_config)
+        if not ("openai_api_key" in llm_node_config and llm_node_config["openai_api_key"] and "llm_model_name" in llm_node_config and llm_node_config["llm_model_name"]):
+            raise HTTPException(status_code=400, detail="LLM node config is incomplete.")
+        return llm_node_config
+
+    @staticmethod
+    def _validate_web_config(web_search_node_config: Optional[str]):
+        if not (web_search_node_config and isinstance(web_search_node_config, str)):
+            raise HTTPException(status_code=400, detail="Web Search node config required but not provided.")
+        web_search_node_config = json.loads(web_search_node_config)
+        if not ("serpapi_api_key" in web_search_node_config and web_search_node_config["serpapi_api_key"]):
+            raise HTTPException(status_code=400, detail="Web Search node config is incomplete.")
+        return web_search_node_config
