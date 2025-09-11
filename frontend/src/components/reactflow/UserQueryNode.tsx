@@ -1,17 +1,31 @@
 import { Handle, Position } from "reactflow";
 import { Card, CardHeader, CardContent } from "../ui/Card";
+import { Button } from "../ui/Button";
 import { LuFileInput } from "react-icons/lu";
-export const UserQueryNode = ({ data }: any) => {
+import { Textarea } from "../ui/Textarea";
+import { CiTrash } from "react-icons/ci";
+
+export const UserQueryNode = ({ data, id }: any) => {
   return (
     <div>
       <Handle type="source" position={Position.Right} />
       <Card className="relative">
         <CardHeader className="pb-2 flex gap-2 flex-row items-center justify-start">
           <LuFileInput size={40} />
-          <div className="font-bold mb-2">{data.label || "User Query"}</div>
+          <div className="font-bold mb-2 flex-1">
+            {data.label || "User Query"}
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => data.onDelete?.(id)}
+            className="ml-auto px-2 py-0 text-lg"
+          >
+            <CiTrash />
+          </Button>
         </CardHeader>
         <CardContent>
-          <div className="text-xs ">User's query goes here.</div>
+          <Textarea placeholder="Type your query here..." disabled />
         </CardContent>
       </Card>{" "}
     </div>
