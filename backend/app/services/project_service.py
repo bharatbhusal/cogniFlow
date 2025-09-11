@@ -8,7 +8,7 @@ from app.services.knowledge_base import knowledge_base_service
 from app.types.responses import *
 from app.utils.cuid_str import cuid_str
 from app.utils.pockity import upload_file_to_pockity
-
+import json
 class ProjectService:
 
     @staticmethod
@@ -160,28 +160,40 @@ class ProjectService:
             project = await ProjectRepository.create(db, project_data)
 
             # Save workflow and node configs if provided
-            if workflow:
+            if workflow and isinstance(workflow, str) and len(workflow.strip())>0:
                 from app.repositories.workflow_node import WorkflowNodeRepository
                 await WorkflowNodeRepository.create(db=db, project_id=project.id, data={
                     "definition": workflow
                 })
-            if kb_node_config:
-                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                await KnowledgeBaseNodeRepository.create(db=db,project_id=project.id, data={
-                    "openai_api_key": kb_node_config.get("openai_api_key"),
-                    "embedding_model_name": kb_node_config.get("embedding_model_name"), 
-                })
-            if llm_node_config:
-                from app.repositories.llm_node import LLMNodeRepository
-                await LLMNodeRepository.create(db=db, project_id=project.id, data={
-                    "openai_api_key": llm_node_config.get("openai_api_key"),
-                    "llm_model_name": llm_node_config.get("llm_model_name"),
-                })
-            if web_search_node_config:
-                from app.repositories.web_search_node import WebSearchNodeRepository
-                await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
-                    "serpapi_api_key": web_search_node_config.get("serpapi_api_key")
-                })
+            if kb_node_config and isinstance(kb_node_config, str):
+                kb_node_config = json.loads(kb_node_config)
+                if (
+                    "openai_api_key" in kb_node_config and kb_node_config["openai_api_key"]
+                    and "embedding_model_name" in kb_node_config and kb_node_config["embedding_model_name"]
+                ):
+                    from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                    await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
+                        "openai_api_key": kb_node_config["openai_api_key"],
+                        "embedding_model_name": kb_node_config["embedding_model_name"],
+                    })
+            if llm_node_config and isinstance(llm_node_config, str):
+                llm_node_config = json.loads(llm_node_config)
+                if (
+                    "openai_api_key" in llm_node_config and llm_node_config["openai_api_key"]
+                    and "llm_model_name" in llm_node_config and llm_node_config["llm_model_name"]
+                ):
+                    from app.repositories.llm_node import LlmNodeRepository
+                    await LlmNodeRepository.create(db=db, project_id=project.id, data={
+                        "openai_api_key": llm_node_config["openai_api_key"],
+                        "llm_model_name": llm_node_config["llm_model_name"],
+                    })
+            if web_search_node_config and isinstance(web_search_node_config, str):
+                web_search_node_config = json.loads(web_search_node_config)
+                if "serpapi_api_key" in web_search_node_config and web_search_node_config["serpapi_api_key"]:
+                    from app.repositories.web_search_node import WebSearchNodeRepository
+                    await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
+                        "serpapi_api_key": web_search_node_config["serpapi_api_key"]
+                    })
 
             # Process PDF files
             processed_documents = []
@@ -432,28 +444,40 @@ class ProjectService:
                         )
 
             # Update workflow and node configs if provided
-            if workflow:
+            if workflow and isinstance(workflow, str) and len(workflow.strip()) > 0:
                 from app.repositories.workflow_node import WorkflowNodeRepository
                 await WorkflowNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "workflow": workflow
+                    "definition": workflow
                 })
-            if kb_node_config:
-                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "openai_api_key": kb_node_config.get("openai_api_key"),
-                    "embedding_model_name": kb_node_config.get("embedding_model_name"), 
-                })
-            if llm_node_config:
-                from app.repositories.llm_node import LLMNodeRepository
-                await LLMNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "openai_api_key": llm_node_config.get("openai_api_key"),
-                    "llm_model_name": llm_node_config.get("llm_model_name"),
-                })
-            if web_search_node_config:
-                from app.repositories.web_search_node import WebSearchNodeRepository
-                await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "serpapi_api_key": web_search_node_config.get("serpapi_api_key")
-                })
+            if kb_node_config and isinstance(kb_node_config, str):
+                kb_node_config = json.loads(kb_node_config)
+                if (
+                    "openai_api_key" in kb_node_config and kb_node_config["openai_api_key"]
+                    and "embedding_model_name" in kb_node_config and kb_node_config["embedding_model_name"]
+                ):
+                    from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                    await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
+                        "openai_api_key": kb_node_config["openai_api_key"],
+                        "embedding_model_name": kb_node_config["embedding_model_name"],
+                    })
+            if llm_node_config and isinstance(llm_node_config, str):
+                llm_node_config = json.loads(llm_node_config)
+                if (
+                    "openai_api_key" in llm_node_config and llm_node_config["openai_api_key"]
+                    and "llm_model_name" in llm_node_config and llm_node_config["llm_model_name"]
+                ):
+                    from app.repositories.llm_node import LlmNodeRepository
+                    await LlmNodeRepository.upsert(db=db, project_id=project_id, data={
+                        "openai_api_key": llm_node_config["openai_api_key"],
+                        "llm_model_name": llm_node_config["llm_model_name"],
+                    })
+            if web_search_node_config and isinstance(web_search_node_config, str):
+                web_search_node_config = json.loads(web_search_node_config)
+                if "serpapi_api_key" in web_search_node_config and web_search_node_config["serpapi_api_key"]:
+                    from app.repositories.web_search_node import WebSearchNodeRepository
+                    await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
+                        "serpapi_api_key": web_search_node_config["serpapi_api_key"]
+                    })
 
             # Get updated project info
             updated_project = await ProjectRepository.get_by_id(db, project_id)

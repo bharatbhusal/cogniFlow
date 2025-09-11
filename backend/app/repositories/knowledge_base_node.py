@@ -4,8 +4,8 @@ from sqlalchemy.future import select
 
 class KnowledgeBaseNodeRepository:
     @staticmethod
-    async def create(db: AsyncSession, data: dict):
-        node = KnowledgeBaseNode(**data)
+    async def create(db: AsyncSession, project_id: str, data: dict):
+        node = KnowledgeBaseNode(**data, project_id=project_id)
         db.add(node)
         await db.commit()
         await db.refresh(node)

@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.llm_node import LLMNode
+from app.models.llm_node import LlmNode
 from sqlalchemy.future import select
 
-class LLMNodeRepository:
+class LlmNodeRepository:
     @staticmethod
-    async def create(db: AsyncSession, data: dict):
-        node = LLMNode(**data)
+    async def create(db: AsyncSession, project_id: str, data: dict):
+        node = LlmNode(**data, project_id=project_id)
         db.add(node)
         await db.commit()
         await db.refresh(node)
@@ -13,7 +13,7 @@ class LLMNodeRepository:
 
     @staticmethod
     async def upsert(db: AsyncSession, project_id: str, data: dict):
-        stmt = select(LLMNode).where(LLMNode.project_id == project_id)
+        stmt = select(LlmNode).where(LlmNode.project_id == project_id)
         result = await db.execute(stmt)
         node = result.scalar_one_or_none()
         if node:
@@ -23,4 +23,4 @@ class LLMNodeRepository:
             await db.refresh(node)
             return node
         else:
-            return await LLMNodeRepository.create(db, data)
+            return await LlmNodeRepository.create(db, data)
