@@ -290,33 +290,32 @@ async def query_project(
             db, project_id
         )
 
-        if not chromadb_chunk_ids:
-            return create_error_response(
-                message="No documents found in this project",
-                error_code="NO_DOCUMENTS_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
+        if chromadb_chunk_ids:
+            context_chunks = await knowledge_base_service.retrieve_relevant_context_by_ids(
+                query=query, chromadb_chunk_ids=chromadb_chunk_ids
             )
-        print("\n\nConversation History:", conversation_history, "\n\n")
+            retrieved_context = [each["text"] for each in context_chunks]
 
-        # Query the knowledge base
-        context_chunks = await knowledge_base_service.retrieve_relevant_context_by_ids(
-            query=query, chromadb_chunk_ids=chromadb_chunk_ids
-        )
-        retrieved_context = [each["text"] for each in context_chunks]
+            # Run RAG pipeline with conversation history
+            llm_response = await openai_service.run_rag_pipeline(
+                user_query=query,
+                retrieved_context=retrieved_context,
+                conversation_history=conversation_history,
+            )
 
-        # Run RAG pipeline with conversation history
-        llm_response = await openai_service.run_rag_pipeline(
-            user_query=query,
-            retrieved_context=retrieved_context,
-            conversation_history=conversation_history,
-        )
-
-        # Save assistant response as a message
-        assistant_message = {
-            "project_id": project_id,
-            "content": llm_response["response_text"],
-            "role": "assistant",
-        }
+            # Save assistant response as a message
+            assistant_message = {
+                "project_id": project_id,
+                "content": llm_response["response_text"],
+                "role": "assistant",
+            }
+        else:
+             assistant_message = {
+                "project_id": project_id,
+                "content": "I'm sorry, I am just a dumb assistant and I don't have any documents in this project to answer your question. Please add some documents and try again.",
+                "role": "assistant",
+            }
+            
         created_message = await MessageRepository.create(db, assistant_message)
 
         return create_success_response(
@@ -326,7 +325,6 @@ async def query_project(
                 "project_id": project_id,
                 "response": {"id": created_message.id, "content":created_message.content, "created_at": created_message.created_at.isoformat(), "role": created_message.role},
                 "conversation_history_included": len(conversation_history) > 0,
-                "context_sources_count": len(retrieved_context),
             },
         )
 
