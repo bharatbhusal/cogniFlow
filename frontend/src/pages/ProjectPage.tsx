@@ -22,6 +22,7 @@ import { IoBookOutline } from "react-icons/io5";
 import { CiGlobe } from "react-icons/ci";
 import { LuFileOutput, LuFileInput } from "react-icons/lu";
 import { IoMenuOutline } from "react-icons/io5";
+import CustomEdge from "../components/reactflow/CustomEdge";
 
 const nodeTypes = {
   userQueryNode: UserQueryNode,
@@ -29,6 +30,10 @@ const nodeTypes = {
   webSearchNode: WebSearchNode,
   outputNode: OutputNode,
   llmNode: LlmNode,
+};
+
+const edgeTypes = {
+  customEdge: CustomEdge,
 };
 
 const initialSidebarNodes = [
@@ -100,7 +105,12 @@ const ProjectPage: React.FC = () => {
   const onConnect = useCallback((connection: Connection) => {
     setEdges((eds) => [
       ...eds,
-      { ...connection, id: `e${connection.source}-${connection.target}` },
+      {
+        ...connection,
+        id: `e${connection.source}-${connection.target}`,
+        animated: true,
+        type: "customEdge",
+      },
     ]);
   }, []);
 
@@ -287,13 +297,13 @@ const ProjectPage: React.FC = () => {
           }))}
           nodeTypes={nodeTypes}
           fitView
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onInit={setRfInstance}
-          deleteKeyCode={"Delete"} // Enable delete with 'Delete' key
         >
           <Background />
           <Controls />
