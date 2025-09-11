@@ -148,7 +148,7 @@ class ProjectService:
                         file_upload_result = upload_file_to_pockity(pdf_file.file, filename=pdf_file.filename)
                         if not file_upload_result or file_upload_result.get("error"):
                             processed_documents.append({
-                                "filename": pdf_file.filename,
+                                "title": pdf_file.filename,
                                 "status": "file_upload_failed",
                                 "error": (
                                     file_upload_result.get("error", {}).get("message")
@@ -192,7 +192,7 @@ class ProjectService:
                             {
                                 "id": document_id,
                                 "chroma_document_id": document_id,
-                                "filename": pdf_file.filename,
+                                "title": pdf_file.filename,
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
                                 "total_chunks": processing_result.get("total_chunks", 0),
@@ -207,7 +207,7 @@ class ProjectService:
                         # but indicate which files failed
                         processed_documents.append(
                             {
-                                "filename": pdf_file.filename,
+                                "title": pdf_file.filename,
                                 "status": "failed",
                                 "error": str(e),
                             }
@@ -386,16 +386,13 @@ class ProjectService:
 
             # Get updated project info
             updated_project = await ProjectRepository.get_by_id(db, project_id)
-            current_doc_count = (
-                len(updated_project.documents) if updated_project.documents else 0
-            )
 
             return {
                 "id": project_id,
                 "name": updated_project.name,
                 "description": updated_project.description,
                 "updates": changes,
-                "current_documents_count": current_doc_count,
+
             }
 
         except HTTPException:

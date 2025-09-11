@@ -44,7 +44,7 @@ export interface Project {
 export interface Document {
 	id: string;
 	project_id: string;
-	filename: string;
+	title: string;
 	file_size: number;
 	content_preview?: string;
 	upload_date: string;

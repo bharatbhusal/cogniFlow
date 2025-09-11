@@ -17,9 +17,10 @@ export const ChatPage: React.FC = () => {
 		fetchOne,
 		query,
 		update: updateProject,
+		currentProject: project,
+		setCurrent: setProject,
 	} = useProjects();
 
-	const [project, setProject] = useState<any>(null);
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [inputMessage, setInputMessage] = useState("");
 	const [isLoading, setIsLoading] = useState(false);

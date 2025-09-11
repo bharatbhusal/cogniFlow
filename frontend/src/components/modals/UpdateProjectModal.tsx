@@ -3,16 +3,12 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
+import { Project } from "../../types";
 
 interface UpdateProjectModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	project: {
-		name: string;
-		description: string;
-		pdf_files?: File[];
-		documents?: { id: string; title: string }[];
-	};
+	project: Project & { pdf_files?: File[] };
 	onUpdate: (data: {
 		name?: string;
 		description?: string;

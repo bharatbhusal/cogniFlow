@@ -268,7 +268,7 @@ const projectSlice = createSlice({
 										...(state.currentProject.documents || []),
 										...(updates.new_files || []),
 								  ]
-								: deletedIds.length > 0
+								: updates.files_deleted > 0 && deletedIds.length > 0
 								? (state.currentProject.documents || []).filter(
 										(doc) => !deletedIds.includes(doc.id)
 								  )
@@ -276,7 +276,7 @@ const projectSlice = createSlice({
 							documents_count: updates.files_added
 								? (state.currentProject.documents_count || 0) +
 								  updates.files_added
-								: deletedIds.length > 0
+								: updates.files_deleted > 0 && deletedIds.length > 0
 								? (state.currentProject.documents_count || 0) -
 								  deletedIds.length
 								: state.currentProject.documents_count,
@@ -319,23 +319,27 @@ const projectSlice = createSlice({
 							description: updates.description_updated
 								? action.payload.description
 								: state.projects[index].description,
-							documents: updates.files_added
-								? [
-										...(state.projects[index].documents || []),
-										...(updates.new_files || []),
-								  ]
-								: deletedIds.length > 0
-								? (state.projects[index].documents || []).filter(
-										(doc) => !deletedIds.includes(doc.id)
-								  )
-								: state.projects[index].documents,
-							documents_count: updates.files_added
-								? (state.projects[index].documents_count || 0) +
-								  updates.files_added
-								: deletedIds.length > 0
-								? (state.projects[index].documents_count || 0) -
-								  deletedIds.length
-								: state.projects[index].documents_count,
+							documents:
+								updates.files_added > 0
+									? [
+											...(state.projects[index].documents || []),
+											...(updates.new_files || []),
+									  ]
+									: updates.files_deleted > 0 &&
+									  deletedIds.length > 0
+									? (state.projects[index].documents || []).filter(
+											(doc) => !deletedIds.includes(doc.id)
+									  )
+									: state.projects[index].documents,
+							documents_count:
+								updates.files_added > 0
+									? (state.projects[index].documents_count || 0) +
+									  updates.files_added
+									: updates.files_deleted > 0 &&
+									  deletedIds.length > 0
+									? (state.projects[index].documents_count || 0) -
+									  deletedIds.length
+									: state.projects[index].documents_count,
 						};
 					}
 				}
