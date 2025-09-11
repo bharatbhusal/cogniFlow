@@ -43,6 +43,7 @@ class ProjectService:
                         }
                         for doc in (project.documents or [])
                     ],
+                    "workflow": project.workflow_node.definition if project.workflow_node else None,
                 }
                 for project in projects
             ]
@@ -100,6 +101,20 @@ class ProjectService:
                 "updated_at": (
                     project.updated_at.isoformat() if project.updated_at else None
                 ),
+                "workflow": project.workflow_node.definition if project.workflow_node else None,
+                "llm_node": {
+                    "openai_api_key": project.llm_node.openai_api_key if project.llm_node else None,
+                    "llm_model_name": project.llm_node.llm_model_name if project.llm_node else None,
+                },
+                "web_search_node": {
+                    "serpapi_api_key": project.web_search_node.serpapi_api_key if project.web_search_node else None,
+                },
+                "knowledge_base_node": {
+                    "openai_api_key": project.knowledge_base_node.openai_api_key if project.knowledge_base_node else None,
+                    "embedding_model_name": project.knowledge_base_node.embedding_model_name if project.knowledge_base_node else None,
+                },
+                
+
             }
         except HTTPException:
             raise
@@ -115,8 +130,12 @@ class ProjectService:
         user_id: str,
         description: Optional[str] = None,
         pdf_files: Optional[List[UploadFile]] = None,
+        workflow: Optional[str] = None,
+        kb_node_config: Optional[str] = None,
+        llm_node_config: Optional[str] = None,
+        web_search_node_config: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create a new project and process uploaded documents"""
+        """Create a new project and process uploaded documents, workflow, and node configs"""
         try:
             # Validate PDF files if provided
             if pdf_files:
@@ -139,6 +158,30 @@ class ProjectService:
                 "owner_id": user_id,
             }
             project = await ProjectRepository.create(db, project_data)
+
+            # Save workflow and node configs if provided
+            if workflow:
+                from app.repositories.workflow_node import WorkflowNodeRepository
+                await WorkflowNodeRepository.create(db=db, project_id=project.id, data={
+                    "definition": workflow
+                })
+            if kb_node_config:
+                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                await KnowledgeBaseNodeRepository.create(db=db,project_id=project.id, data={
+                    "openai_api_key": kb_node_config.get("openai_api_key"),
+                    "embedding_model_name": kb_node_config.get("embedding_model_name"), 
+                })
+            if llm_node_config:
+                from app.repositories.llm_node import LLMNodeRepository
+                await LLMNodeRepository.create(db=db, project_id=project.id, data={
+                    "openai_api_key": llm_node_config.get("openai_api_key"),
+                    "llm_model_name": llm_node_config.get("llm_model_name"),
+                })
+            if web_search_node_config:
+                from app.repositories.web_search_node import WebSearchNodeRepository
+                await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
+                    "serpapi_api_key": web_search_node_config.get("serpapi_api_key")
+                })
 
             # Process PDF files
             processed_documents = []
@@ -242,8 +285,12 @@ class ProjectService:
         description: Optional[str] = None,
         pdf_files: Optional[List[UploadFile]] = None,
         delete_document_ids: Optional[List[str]] = None,
+        workflow: Optional[str] = None,
+        kb_node_config: Optional[str] = None,
+        llm_node_config: Optional[str] = None,
+        web_search_node_config: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Update project with new information, files, or deletions"""
+        """Update project with new information, files, deletions, workflow, and node configs"""
         try:
             # Verify project exists and user owns it
             project = await ProjectRepository.get_by_id(db, project_id)
@@ -383,6 +430,30 @@ class ProjectService:
                                 "error": str(e),
                             }
                         )
+
+            # Update workflow and node configs if provided
+            if workflow:
+                from app.repositories.workflow_node import WorkflowNodeRepository
+                await WorkflowNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "workflow": workflow
+                })
+            if kb_node_config:
+                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "openai_api_key": kb_node_config.get("openai_api_key"),
+                    "embedding_model_name": kb_node_config.get("embedding_model_name"), 
+                })
+            if llm_node_config:
+                from app.repositories.llm_node import LLMNodeRepository
+                await LLMNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "openai_api_key": llm_node_config.get("openai_api_key"),
+                    "llm_model_name": llm_node_config.get("llm_model_name"),
+                })
+            if web_search_node_config:
+                from app.repositories.web_search_node import WebSearchNodeRepository
+                await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
+                    "serpapi_api_key": web_search_node_config.get("serpapi_api_key")
+                })
 
             # Get updated project info
             updated_project = await ProjectRepository.get_by_id(db, project_id)

@@ -22,3 +22,7 @@ class Project(Base):
     messages = relationship(
         "Message", back_populates="project", cascade="all, delete-orphan"
     )
+    workflow_node = relationship("WorkflowNode", back_populates="project", uselist=False)
+    knowledge_base_node = relationship("KnowledgeBaseNode", back_populates="project", uselist=False)
+    llm_node = relationship("LlmNode", back_populates="project", uselist=False)
+    web_search_node = relationship("WebSearchNode", back_populates="project", uselist=False)

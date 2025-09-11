@@ -20,6 +20,10 @@ async def create_project(
     name: str = Form(...),
     description: Optional[str] = Form(None),
     pdf_files: Optional[List[UploadFile]] = File(None),
+    workflow: Optional[str] = Form(None),
+    kb_node_config: Optional[str] = Form(None),
+    llm_node_config: Optional[str] = Form(None),
+    web_search_node_config: Optional[str] = Form(None),
     user: AuthJWTTokenDict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -46,6 +50,10 @@ async def create_project(
             user_id=user["id"],
             description=description,
             pdf_files=pdf_files,
+            workflow=workflow,
+            kb_node_config=kb_node_config,
+            llm_node_config=llm_node_config,
+            web_search_node_config=web_search_node_config,
         )
 
         # # Get ChromaDB chunk IDs for the project
@@ -158,6 +166,10 @@ async def update_project(
     description: Optional[str] = Form(None),
     pdf_files: Optional[List[UploadFile]] = File(None),
     delete_documents: Optional[str] = Form(None),  # Comma-separated document IDs
+    workflow: Optional[str] = Form(None),
+    kb_node_config: Optional[str] = Form(None),
+    llm_node_config: Optional[str] = Form(None),
+    web_search_node_config: Optional[str] = Form(None),
     user: AuthJWTTokenDict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -199,6 +211,10 @@ async def update_project(
             description=description,
             pdf_files=pdf_files,
             delete_document_ids=delete_document_ids,
+            workflow=workflow,
+            kb_node_config=kb_node_config,
+            llm_node_config=llm_node_config,
+            web_search_node_config=web_search_node_config,
         )
 
         return create_success_response(
