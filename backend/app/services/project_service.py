@@ -1,4 +1,7 @@
-
+from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+from app.repositories.llm_node import LlmNodeRepository
+from app.repositories.web_search_node import WebSearchNodeRepository
+from app.repositories.workflow import WorkflowRepository
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
@@ -44,7 +47,7 @@ class ProjectService:
                         }
                         for doc in (project.documents or [])
                     ],
-                    "workflow": project.workflow_node.definition if project.workflow_node else None,
+                    "workflow": project.workflow.definition if project.workflow else None,
                 }
                 for project in projects
             ]
@@ -102,7 +105,7 @@ class ProjectService:
                 "updated_at": (
                     project.updated_at.isoformat() if project.updated_at else None
                 ),
-                "workflow": project.workflow_node.definition if project.workflow_node else None,
+                "workflow": project.workflow.definition if project.workflow else None,
                 "llm_node": {
                     "openai_api_key": project.llm_node.openai_api_key if project.llm_node else None,
                     "llm_model_name": project.llm_node.llm_model_name if project.llm_node else None,
@@ -331,6 +334,10 @@ class ProjectService:
                 "files_deleted": 0,
                 "new_files": [],
                 "deleted_files": [],
+                "workflow_status": "unchanged",
+                "kb_node_status": "unchanged",
+                "llm_node_status": "unchanged",
+                "web_search_node_status": "unchanged",
             }
 
             # Delete specified documents
@@ -412,59 +419,85 @@ class ProjectService:
                             "error": str(e),
                         })
 
-            # Workflow and node config logic
-            workflow_flags = ProjectService._parse_workflow(workflow)
-            if workflow_flags["hasKb"]:
-                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
-                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "openai_api_key": kb_node_config_dict["openai_api_key"],
-                    "embedding_model_name": kb_node_config_dict["embedding_model_name"],
-                })
-            if workflow_flags["hasLlm"]:
-                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
-                from app.repositories.llm_node import LlmNodeRepository
-                await LlmNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "openai_api_key": llm_node_config_dict["openai_api_key"],
-                    "llm_model_name": llm_node_config_dict["llm_model_name"],
-                })
-            if workflow_flags["hasWeb"]:
-                web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
-                from app.repositories.web_search_node import WebSearchNodeRepository
-                await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
-                    "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
-                })
-            if workflow and isinstance(workflow, str) and workflow.strip():
-                from app.repositories.workflow import WorkflowRepository
-                await WorkflowRepository.upsert(db=db, project_id=project_id, data={
-                    "definition": workflow
-                })
+            # Only update workflow if provided, and validate it first
+            workflow_flags = None
+            if workflow is not None:
+                workflow_flags = ProjectService._parse_workflow(workflow)  # will raise if invalid
+                if (project and project.workflow and project.workflow.definition != workflow):
+                    await WorkflowRepository.upsert(db=db, project_id=project_id, data={
+                        "definition": workflow
+                    })
+                    changes["workflow_status"] = { "status": "updated", "from": project.workflow.definition, "to": workflow }
+                else:
+                    changes["workflow_status"] = { "status": "unchanged" }
 
-            # Get updated project info and node configs from relationships
+            # Get current project nodes
             updated_project = await ProjectRepository.get_by_id(db, project_id)
             await db.refresh(updated_project)
-            workflow_def = updated_project.workflow.definition if updated_project.workflow else None
-            kb_node = updated_project.knowledge_base_node if hasattr(updated_project, "knowledge_base_node") else None
-            llm_node = updated_project.llm_node if hasattr(updated_project, "llm_node") else None
-            web_search_node = updated_project.web_search_node if hasattr(updated_project, "web_search_node") else None
+            kb_node_exists = updated_project.knowledge_base_node is not None
+            llm_node_exists = updated_project.llm_node is not None
+            web_node_exists = updated_project.web_search_node is not None
+
+            # If workflow requires KB node, ensure it exists or config is provided
+            if workflow_flags and workflow_flags["hasKb"]:
+                if not kb_node_exists:
+                    if kb_node_config is None:
+                        raise HTTPException(status_code=400, detail="Knowledge Base node required by workflow but not present. Please provide kb_node_config.")
+                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    await KnowledgeBaseNodeRepository.create(db=db, project_id=project_id, data={
+                        "openai_api_key": kb_node_config_dict.get("openai_api_key"),
+                        "embedding_model_name": kb_node_config_dict.get("embedding_model_name"),
+                    })
+                    changes["kb_node_status"] = "created"
+                elif kb_node_config is not None:
+                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
+                        "openai_api_key": kb_node_config_dict.get("openai_api_key"),
+                        "embedding_model_name": kb_node_config_dict.get("embedding_model_name"),
+                    })
+                    changes["kb_node_status"] = "updated"
+
+            # If workflow requires LLM node, ensure it exists or config is provided
+            if workflow_flags and workflow_flags["hasLlm"]:
+                if not llm_node_exists:
+                    if llm_node_config is None:
+                        raise HTTPException(status_code=400, detail="LLM node required by workflow but not present. Please provide llm_node_config.")
+                    llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                    await LlmNodeRepository.create(db=db, project_id=project_id, data={
+                        "openai_api_key": llm_node_config_dict.get("openai_api_key"),
+                        "llm_model_name": llm_node_config_dict.get("llm_model_name"),
+                    })
+                    changes["llm_node_status"] = "created"
+                elif llm_node_config is not None:
+                    llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                    await LlmNodeRepository.upsert(db=db, project_id=project_id, data={
+                        "openai_api_key": llm_node_config_dict.get("openai_api_key"),
+                        "llm_model_name": llm_node_config_dict.get("llm_model_name"),
+                    })
+                    changes["llm_node_status"] = "updated"
+
+            # If workflow requires Web Search node, ensure it exists or config is provided
+            if workflow_flags and workflow_flags["hasWeb"]:
+                if not web_node_exists:
+                    if web_search_node_config is None:
+                        raise HTTPException(status_code=400, detail="Web Search node required by workflow but not present. Please provide web_search_node_config.")
+                    web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
+                    await WebSearchNodeRepository.create(db=db, project_id=project_id, data={
+                        "serpapi_api_key": web_search_node_config_dict.get("serpapi_api_key")
+                    })
+                    changes["web_search_node_status"] = "created"
+                elif web_search_node_config is not None:
+                    web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
+                    await WebSearchNodeRepository.upsert(db=db, project_id=project_id, data={
+                        "serpapi_api_key": web_search_node_config_dict.get("serpapi_api_key")
+                    })
+                    changes["web_search_node_status"] = "updated"
 
             return {
                 "id": project_id,
                 "name": updated_project.name,
                 "description": updated_project.description,
                 "updates": changes,
-                "workflow": workflow_def,
-                "kb_node_config": {
-                    "openai_api_key": kb_node.openai_api_key if kb_node else None,
-                    "embedding_model_name": kb_node.embedding_model_name if kb_node else None,
-                },
-                "llm_node_config": {
-                    "openai_api_key": llm_node.openai_api_key if llm_node else None,
-                    "llm_model_name": llm_node.llm_model_name if llm_node else None,
-                },
-                "web_search_node_config": {
-                    "serpapi_api_key": web_search_node.serpapi_api_key if web_search_node else None,
-                },
             }
         except HTTPException:
             raise

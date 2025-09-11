@@ -44,7 +44,7 @@ class ProjectRepository:
     async def update(
         db: AsyncSession, project_id: str, project_data: Dict[str, Any]
     ) -> Project | None:
-        result = await db.execute(select(Project).where(Project.id == project_id))
+        result = await db.execute(select(Project).where(Project.id == project_id).options(selectinload(Project.workflow)))
         db_project = result.scalar_one_or_none()
 
         if db_project:
