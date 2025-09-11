@@ -182,7 +182,7 @@ export const ProjectsPage: React.FC = () => {
 											</CardTitle>
 											<div className="flex gap-2">
 												<Button
-													variant="ghost"
+													variant="secondary"
 													size="sm"
 													onClick={(e) => {
 														e.stopPropagation();
@@ -193,7 +193,7 @@ export const ProjectsPage: React.FC = () => {
 													Update
 												</Button>
 												<Button
-													variant="ghost"
+													variant="secondary"
 													size="sm"
 													onClick={(e) => {
 														e.stopPropagation();

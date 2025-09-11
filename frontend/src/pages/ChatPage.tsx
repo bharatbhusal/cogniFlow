@@ -7,6 +7,7 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Textarea } from "../components/ui/Textarea";
 import { Message, Project } from "../types";
 import { toast } from "react-toastify";
+import { DocumentsModal } from "../components/modals/DocumentsModal";
 
 export const ChatPage: React.FC = () => {
 	const [showUpdateModal, setShowUpdateModal] =
@@ -25,6 +26,10 @@ export const ChatPage: React.FC = () => {
 	const [inputMessage, setInputMessage] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [showDocumentsModal, setShowDocumentsModal] =
+		useState(false);
+	const [selectedProject, setSelectedProject] =
+		useState<any>(null);
 
 	useEffect(() => {
 		if (projectId) {
@@ -159,19 +164,24 @@ export const ChatPage: React.FC = () => {
 							</h3>
 							<div className="space-y-2">
 								<Button
-									variant="outline"
+									variant="secondary"
 									size="sm"
 									className="w-full"
 									onClick={() => setShowUpdateModal(true)}
 								>
-									Upload Document
+									Update Document
 								</Button>
 								<Button
-									variant="outline"
+									variant="secondary"
 									size="sm"
 									className="w-full"
+									onClick={(e) => {
+										e.stopPropagation();
+										setSelectedProject(project);
+										setShowDocumentsModal(true);
+									}}
 								>
-									View Documents
+									Documents
 								</Button>
 							</div>
 						</div>
@@ -261,6 +271,15 @@ export const ChatPage: React.FC = () => {
 					onClose={() => setShowUpdateModal(false)}
 					project={project}
 					onUpdate={handleUpdateProject}
+				/>
+			)}
+
+			{/* View Documents Modal */}
+			{showDocumentsModal && selectedProject && (
+				<DocumentsModal
+					isOpen={showDocumentsModal}
+					onClose={() => setShowDocumentsModal(false)}
+					project={selectedProject}
 				/>
 			)}
 		</div>
