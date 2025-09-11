@@ -39,6 +39,7 @@ class ProjectService:
                             "id": doc.id,
                             "title": doc.title,
                             "chroma_document_id": doc.chroma_document_id,
+                            "file_url": doc.file_url,
                         }
                         for doc in (project.documents or [])
                     ],
@@ -76,6 +77,7 @@ class ProjectService:
                         "id": doc.id,
                         "title": doc.title,
                         "chroma_document_id": doc.chroma_document_id,
+                        "file_url": doc.file_url,
                     }
                     for doc in (project.documents or [])
                 ],
@@ -212,11 +214,16 @@ class ProjectService:
                         )
 
             return {
-                "project_id": project.id,
+                "id": project.id,
                 "name": project.name,
                 "description": project.description,
                 "total_files": len(processed_documents),
                 "documents": processed_documents,
+                "created_at": (
+                    project.created_at.isoformat()
+                    if project.created_at
+                    else None
+                ),
             }
 
         except HTTPException:
@@ -282,8 +289,8 @@ class ProjectService:
 
                         changes["deleted_files"].append(
                             {
-                                "document_id": doc_id,
-                                "filename": document.title,
+                                "id": doc_id,
+                                "title": document.title,
                                 "deleted_from_chromadb": chromadb_deleted,
                                 "deleted_from_postgres": postgres_deleted,
                                 "status": (
@@ -321,7 +328,7 @@ class ProjectService:
                         if existing_doc:
                             changes["new_files"].append(
                                 {
-                                    "filename": pdf_file.filename,
+                                    "title": pdf_file.filename,
                                     "status": "duplicate_skipped",
                                     "existing_document_id": existing_doc.id,
                                 }
@@ -357,7 +364,7 @@ class ProjectService:
                         changes["new_files"].append(
                             {
                                 "id": new_document.id,
-                                "filename": new_document.title,
+                                "title": new_document.title,
                                 "size": len(content),
                                 "pages": processing_result.get("pages", 0),
                                 "total_chunks": processing_result.get("total_chunks", 0),
@@ -371,7 +378,7 @@ class ProjectService:
                     except Exception as e:
                         changes["new_files"].append(
                             {
-                                "filename": pdf_file.filename,
+                                "title": pdf_file.filename,
                                 "status": "failed",
                                 "error": str(e),
                             }
@@ -384,7 +391,7 @@ class ProjectService:
             )
 
             return {
-                "project_id": project_id,
+                "id": project_id,
                 "name": updated_project.name,
                 "description": updated_project.description,
                 "updates": changes,
