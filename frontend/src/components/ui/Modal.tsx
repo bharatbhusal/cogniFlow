@@ -39,7 +39,8 @@ export const Modal: React.FC<ModalProps> = ({
             }}
           >
             <Button
-              className="absolute top-2 right-2  text-gray-100"
+              className="absolute top-2 right-2"
+              variant="destructive"
               onClick={onClose}
               aria-label="Close"
               style={{ fontSize: 24 }}

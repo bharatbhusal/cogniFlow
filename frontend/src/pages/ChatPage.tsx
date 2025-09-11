@@ -3,17 +3,12 @@ import { UpdateProjectModal } from "../components/modals/UpdateProjectModal";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProjects } from "../hooks/useProjects";
 import { Button } from "../components/ui/Button";
-import { Card, CardContent, CardHeader } from "../components/ui/Card";
+import { Card, CardContent } from "../components/ui/Card";
 import { Textarea } from "../components/ui/Textarea";
-import { Message, Project } from "../types";
+import { Message } from "../types";
 import { toast } from "react-toastify";
 import { DocumentsModal } from "../components/modals/DocumentsModal";
-import {
-  FaBackspace,
-  FaBackward,
-  FaChevronCircleLeft,
-  FaChevronLeft,
-} from "react-icons/fa";
+import { FaChevronCircleLeft } from "react-icons/fa";
 
 export const ChatPage: React.FC = () => {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -27,18 +22,15 @@ export const ChatPage: React.FC = () => {
     setCurrent: setProject,
   } = useProjects();
 
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
 
   useEffect(() => {
     if (projectId) {
       fetchOne(projectId).then((res) => {
         setProject(res.payload);
-        setMessages((res.payload as Project).messages || []);
       });
     }
   }, [projectId]);
@@ -47,7 +39,7 @@ export const ChatPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [messages]);
+  }, [project?.messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,20 +51,10 @@ export const ChatPage: React.FC = () => {
       role: "user",
       created_at: new Date().toISOString(),
     };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsLoading(true);
-
-    setTimeout(() => {
-      query(projectId!, { query: userMessage.content }).then((res) => {
-        setMessages((prev) => [
-          ...prev,
-          (res.payload as any).response as Message,
-        ]);
-        setIsLoading(false);
-      });
-    }, 1000);
+    query(projectId!, { query: userMessage.content });
+    setIsLoading(false);
   };
 
   const handleUpdateProject = async (data: {
@@ -137,11 +119,13 @@ export const ChatPage: React.FC = () => {
                   <div className="space-y-2 text-sm">
                     <p>
                       <span className="font-medium">Documents:</span>{" "}
-                      {project.documents_count || 0}
+                      {project.documents?.length ||
+                        project.documents_count ||
+                        0}
                     </p>
                     <p>
                       <span className="font-medium">Messages:</span>{" "}
-                      {project.messages_count || 0}
+                      {project.messages?.length || project.messages_count || 0}
                     </p>
                     <p>
                       <span className="font-medium">Created:</span>{" "}
@@ -202,7 +186,7 @@ export const ChatPage: React.FC = () => {
         <main className="flex-1 flex flex-col h-full overflow-y-auto">
           {/* Messages Area */}
           <div className="flex-1 p-4 space-y-4">
-            {messages.length === 0 ? (
+            {project?.messages?.length === 0 ? (
               <div className="text-center py-12">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                   Start a conversation
@@ -213,7 +197,7 @@ export const ChatPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              messages.map((message) => (
+              project?.messages?.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${
@@ -278,11 +262,11 @@ export const ChatPage: React.FC = () => {
       )}
 
       {/* View Documents Modal */}
-      {showDocumentsModal && selectedProject && (
+      {showDocumentsModal && project && (
         <DocumentsModal
           isOpen={showDocumentsModal}
           onClose={() => setShowDocumentsModal(false)}
-          project={selectedProject}
+          project={project}
         />
       )}
     </div>

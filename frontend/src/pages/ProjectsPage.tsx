@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaFilePdf, FaTrash, FaEdit } from "react-icons/fa";
+import { FaFilePdf, FaTrash, FaEdit } from "react-icons/fa";
 import { motion } from "framer-motion";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { CreateProjectModal } from "../components/modals/CreateProjectModal";
 import { UpdateProjectModal } from "../components/modals/UpdateProjectModal";

@@ -317,9 +317,15 @@ const projectSlice = createSlice({
 
     // Query project
     builder
-      .addCase(queryProject.pending, (state) => {
+      .addCase(queryProject.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        state.currentProject?.messages!.push({
+          id: "temp-id-" + Date.now(),
+          content: action.meta.arg.queryData.query,
+          role: "user",
+          created_at: new Date().toISOString(),
+        });
       })
       .addCase(queryProject.fulfilled, (state, action) => {
         state.loading = false;
