@@ -13,7 +13,7 @@ class ProjectRepository:
             .where(Project.id == project_id)
             .options(selectinload(Project.documents))
             .options(selectinload(Project.messages))
-            .options(selectinload(Project.workflow_node))
+            .options(selectinload(Project.workflow))
             .options(selectinload(Project.web_search_node))
             .options(selectinload(Project.knowledge_base_node))
             .options(selectinload(Project.llm_node))
@@ -28,7 +28,7 @@ class ProjectRepository:
             .order_by(Project.created_at.desc())
             .options(selectinload(Project.documents))
             .options(selectinload(Project.messages))
-            .options(selectinload(Project.workflow_node))
+            .options(selectinload(Project.workflow))
         )
         return result.scalars().all()
 

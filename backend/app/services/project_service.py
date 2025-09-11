@@ -251,6 +251,13 @@ class ProjectService:
                                 "error": str(e),
                             }
                         )
+            # Gather node configs and workflow from project relationships
+            project = await ProjectRepository.get_by_id(db, project.id)
+            workflow_def = project.workflow.definition if project.workflow else None
+            kb_node = project.knowledge_base_node if hasattr(project, "knowledge_base_node") else None
+            llm_node = project.llm_node if hasattr(project, "llm_node") else None
+            web_search_node = project.web_search_node if hasattr(project, "web_search_node") else None
+
             return {
                 "id": project.id,
                 "name": project.name,
@@ -262,6 +269,18 @@ class ProjectService:
                     if project.created_at
                     else None
                 ),
+                "workflow": workflow_def,
+                "kb_node_config": {
+                    "openai_api_key": kb_node.openai_api_key if kb_node else None,
+                    "embedding_model_name": kb_node.embedding_model_name if kb_node else None,
+                },
+                "llm_node_config": {
+                    "openai_api_key": llm_node.openai_api_key if llm_node else None,
+                    "llm_model_name": llm_node.llm_model_name if llm_node else None,
+                },
+                "web_search_node_config": {
+                    "serpapi_api_key": web_search_node.serpapi_api_key if web_search_node else None,
+                },
             }
         except HTTPException:
             raise
@@ -421,13 +440,31 @@ class ProjectService:
                     "definition": workflow
                 })
 
-            # Get updated project info
+            # Get updated project info and node configs from relationships
             updated_project = await ProjectRepository.get_by_id(db, project_id)
+            await db.refresh(updated_project)
+            workflow_def = updated_project.workflow.definition if updated_project.workflow else None
+            kb_node = updated_project.knowledge_base_node if hasattr(updated_project, "knowledge_base_node") else None
+            llm_node = updated_project.llm_node if hasattr(updated_project, "llm_node") else None
+            web_search_node = updated_project.web_search_node if hasattr(updated_project, "web_search_node") else None
+
             return {
                 "id": project_id,
                 "name": updated_project.name,
                 "description": updated_project.description,
                 "updates": changes,
+                "workflow": workflow_def,
+                "kb_node_config": {
+                    "openai_api_key": kb_node.openai_api_key if kb_node else None,
+                    "embedding_model_name": kb_node.embedding_model_name if kb_node else None,
+                },
+                "llm_node_config": {
+                    "openai_api_key": llm_node.openai_api_key if llm_node else None,
+                    "llm_model_name": llm_node.llm_model_name if llm_node else None,
+                },
+                "web_search_node_config": {
+                    "serpapi_api_key": web_search_node.serpapi_api_key if web_search_node else None,
+                },
             }
         except HTTPException:
             raise
@@ -486,7 +523,7 @@ class ProjectService:
     def _parse_workflow(workflow: Optional[str]) -> Dict[str, bool]:
         allowed_workflows = {"kb_llm", "kb_llm_web", "web", "llm_web", "llm", "web_llm"}
         if not workflow or not isinstance(workflow, str) or not workflow.strip():
-            return {"hasKb": False, "hasLlm": False, "hasWeb": False}
+            raise HTTPException(status_code=400, detail=f"Workflow definition is required.")
         if workflow not in allowed_workflows:
             raise HTTPException(status_code=400, detail=f"Invalid workflow definition. Allowed values are: {', '.join(allowed_workflows)}")
         parts = workflow.split("_")
