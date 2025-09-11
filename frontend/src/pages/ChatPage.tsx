@@ -20,6 +20,7 @@ export const ChatPage: React.FC = () => {
     update: updateProject,
     currentProject: project,
     setCurrent: setProject,
+    loading,
   } = useProjects();
 
   const [inputMessage, setInputMessage] = useState("");
@@ -218,6 +219,28 @@ export const ChatPage: React.FC = () => {
                   </div>
                 </div>
               ))
+            )}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex justify-left items-center w-md gap-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white h-10 w-20 px-4 py-2 rounded-lg">
+                  <ul
+                    className="animate-bounce h-2 bg-gray-300 rounded-lg w-2"
+                    style={{ animationDelay: "0s" }}
+                  ></ul>
+                  <ul
+                    className="animate-bounce h-2 bg-gray-300 rounded-lg w-2"
+                    style={{ animationDelay: "0.15s" }}
+                  ></ul>
+                  <ul
+                    className="animate-bounce h-2 bg-gray-300 rounded-lg w-2"
+                    style={{ animationDelay: "0.3s" }}
+                  ></ul>
+                  <ul
+                    className="animate-bounce h-2 bg-gray-300 rounded-lg w-2"
+                    style={{ animationDelay: "0.45s" }}
+                  ></ul>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
