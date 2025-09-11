@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import ReactFlow, {
   Background,
@@ -16,6 +16,12 @@ import { LlmNode } from "../components/reactflow/LlmNode";
 import { useProjects } from "../hooks/useProjects";
 import { Button } from "../components/ui/Button";
 import { FaChevronCircleLeft } from "react-icons/fa";
+import { Card, CardContent } from "../components/ui/Card";
+import { WiStars } from "react-icons/wi";
+import { IoBookOutline } from "react-icons/io5";
+import { CiGlobe } from "react-icons/ci";
+import { LuFileOutput, LuFileInput } from "react-icons/lu";
+import { IoMenuOutline } from "react-icons/io5";
 
 const nodeTypes = {
   userQueryNode: UserQueryNode,
@@ -25,6 +31,18 @@ const nodeTypes = {
   llmNode: LlmNode,
 };
 
+const initialSidebarNodes = [
+  { id: "userQueryNode", label: "User Query", icon: <LuFileInput /> },
+  {
+    id: "knowledgeBaseNode",
+    label: "Knowledge Base",
+    icon: <CiGlobe />,
+  },
+  { id: "llmNode", label: "LLM", icon: <WiStars /> },
+  { id: "webSearchNode", label: "Web Search", icon: <IoBookOutline /> },
+  { id: "outputNode", label: "Output", icon: <LuFileOutput /> },
+];
+
 const ProjectPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -32,6 +50,9 @@ const ProjectPage: React.FC = () => {
   const { fetchOne, currentProject: project, setCurrent } = useProjects();
   const [nodes, setNodes] = useState<any[]>([]);
   const [edges, setEdges] = useState<any[]>([]);
+  const [sidebarNodes, setSidebarNodes] = useState(initialSidebarNodes);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const [rfInstance, setRfInstance] = useState<any>(null);
 
   // Handlers for drag events
   const onNodesChange = useCallback((changes: any) => {
@@ -57,69 +78,143 @@ const ProjectPage: React.FC = () => {
     if (projectId) {
       fetchOne(projectId).then((res) => setCurrent(res.payload));
     }
-    // Demo static nodes/edges for now
-    setNodes([
-      {
-        id: "1",
-        type: "userQueryNode",
-        position: { x: 50, y: 50 },
-        data: { label: "User Query" },
-      },
-      {
-        id: "2",
-        type: "knowledgeBaseNode",
-        position: { x: 300, y: 100 },
-        data: { label: "Knowledge Base", editable: editable },
-      },
-      {
-        id: "3",
-        type: "llmNode",
-        position: { x: 800, y: -100 },
-        data: { label: "LLM" },
-      },
-      {
-        id: "4",
-        type: "webSearchNode",
-        position: { x: 1000, y: 200 },
-        data: { label: "Web Search" },
-      },
-      {
-        id: "5",
-        type: "outputNode",
-        position: { x: 1300, y: 50 },
-        data: { label: "Output" },
-      },
-    ]);
-    setEdges([
-      { id: "e1-2", source: "1", target: "2" },
-      { id: "e2-3", source: "2", target: "3" },
-      { id: "e3-4", source: "3", target: "4" },
-      { id: "e4-5", source: "4", target: "5" },
-    ]);
+    setNodes([]);
+    setEdges([]);
+    setSidebarNodes(initialSidebarNodes);
   }, [projectId, editable, fetchOne, setCurrent]);
 
+  // Drag and drop logic
+  const onDragStart = (
+    event: React.DragEvent,
+    nodeType: string,
+    label: string
+  ) => {
+    event.dataTransfer.setData("application/reactflow", nodeType);
+    event.dataTransfer.setData("label", label);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const onDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    const type = event.dataTransfer.getData("application/reactflow");
+    const label = event.dataTransfer.getData("label");
+    if (typeof type === "undefined" || !type) return;
+    let position = { x: 100, y: 100 };
+    if (rfInstance) {
+      position = rfInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+    }
+    const newId = `${type}-${Date.now()}`;
+    setNodes((nds) => [
+      ...nds,
+      {
+        id: newId,
+        type,
+        position,
+        data: { label },
+      },
+    ]);
+    setSidebarNodes((list) => list.filter((n) => n.id !== type));
+  };
+
+  const onDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
+
   return (
-    <div className="h-[calc(100vh-100px)] w-full">
-      <div className="p-4">
-        <Button variant="ghost" onClick={() => navigate("/projects")}>
-          <FaChevronCircleLeft size={24} />
-        </Button>
-      </div>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges.map((edge) => ({
-          ...edge,
-          style: { strokeDasharray: "4 2", strokeWidth: 1 },
-        }))}
-        nodeTypes={nodeTypes}
-        fitView
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+    <div className="h-screen w-full flex">
+      {/* Sidebar */}
+      <aside className="w-64 shadow p-4 h-full overflow-y-auto sticky top-0 bg-gray-900 text-white flex flex-col gap-4">
+        <div className="space-y-4">
+          <div className="mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center py-4 gap-2">
+              <Button variant="ghost" onClick={() => navigate(-1)}>
+                <FaChevronCircleLeft size={24} />
+              </Button>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                {project?.name}
+              </h1>
+            </div>
+            {project?.description && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {project.description!.length > 200
+                  ? project.description!.slice(0, 200) + "..."
+                  : project.description}
+              </p>
+            )}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+              Project Info
+            </h3>
+            <Card>
+              <CardContent className="p-3">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="font-medium">Documents:</span>{" "}
+                    {project?.documents?.length ||
+                      project?.documents_count ||
+                      0}
+                  </p>
+                  <p>
+                    <span className="font-medium">Messages:</span>{" "}
+                    {project?.messages?.length || project?.messages_count || 0}
+                  </p>
+                  <p>
+                    <span className="font-medium">Created:</span>{" "}
+                    {new Date(project?.created_at!).toLocaleDateString()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        <h3 className="text-sm font-medium mb-2">Nodes</h3>
+        <div className="flex flex-col gap-2">
+          {sidebarNodes.map((node) => (
+            <div
+              key={node.id}
+              className="cursor-move flex justify-between items-center bg-gray-800 rounded p-2 text-center text-sm border border-gray-700 hover:bg-gray-700 transition"
+              draggable
+              onDragStart={(e) => onDragStart(e, node.id, node.label)}
+            >
+              <div className="flex items-center gap-2">
+                {node.icon}
+                {node.label}
+              </div>
+              <IoMenuOutline />
+            </div>
+          ))}
+        </div>
+      </aside>
+      {/* Main Flow Area */}
+      <div
+        className="flex-1"
+        ref={reactFlowWrapper}
+        style={{ position: "relative" }}
       >
-        <Background />
-        <Controls />
-      </ReactFlow>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges.map((edge) => ({
+            ...edge,
+            style: { strokeDasharray: "4 2", strokeWidth: 1 },
+          }))}
+          nodeTypes={nodeTypes}
+          fitView
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onInit={setRfInstance}
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
+      </div>
     </div>
   );
 };
