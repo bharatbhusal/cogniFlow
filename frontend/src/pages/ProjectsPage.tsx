@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { FaFilePdf, FaTrash, FaEdit } from "react-icons/fa";
+import {
+  FaFilePdf,
+  FaTrash,
+  FaEdit,
+  FaFacebookMessenger,
+} from "react-icons/fa";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -153,8 +158,7 @@ export const ProjectsPage: React.FC = () => {
               {projects.map((project) => (
                 <Card
                   key={project.id}
-                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 cursor-pointer hover:scale-[1.025] hover:shadow-2xl transition-all duration-200 flex flex-col justify-between"
-                  onClick={() => navigate(`/chat/${project.id}`)}
+                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between"
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-2xl font-bold text-slate-100 mb-1">
@@ -191,29 +195,33 @@ export const ProjectsPage: React.FC = () => {
                       variant="secondary"
                       size="sm"
                       className="flex items-center gap-2 px-3 py-1 rounded-lg"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedProject(project);
-                        setShowDocumentsModal(true);
-                      }}
-                      title="Documents"
+                      onClick={() =>
+                        navigate(`/project/${project.id}?editable=false`)
+                      }
+                      title="View Documents"
                     >
-                      <FaFilePdf className="text-red-400" />
-                      {/* <span className="hidden md:inline">Documents</span> */}
+                      <FaFilePdf className="text-white" />
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex items-center gap-2 px-3 py-1 rounded-lg"
+                      onClick={() => navigate(`/chat/${project.id}`)}
+                      title="Chat"
+                    >
+                      <FaFacebookMessenger className="text-white" />
                     </Button>
                     <Button
                       variant="secondary"
                       size="sm"
                       className="flex items-center gap-2 px-3 py-1 rounded-lg"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedProject(project);
-                        setShowUpdateModal(true);
-                      }}
+                      onClick={() =>
+                        navigate(`/project/${project.id}?editable=true`)
+                      }
                       title="Edit"
                     >
                       <FaEdit />
-                      {/* <span className="hidden md:inline">Edit</span> */}
                     </Button>
                     <Button
                       variant="destructive"
@@ -226,7 +234,6 @@ export const ProjectsPage: React.FC = () => {
                       title="Delete"
                     >
                       <FaTrash />
-                      {/* <span className="hidden md:inline">Delete</span> */}
                     </Button>
                   </CardFooter>
                 </Card>
@@ -256,3 +263,4 @@ export const ProjectsPage: React.FC = () => {
     </motion.div>
   );
 };
+export default ProjectsPage;
