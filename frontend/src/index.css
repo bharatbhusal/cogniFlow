@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-  --background: 0 0% 98%;
-  --foreground: 160 20% 20%; /* deep green-gray for text */
-  --card: 0 0% 100%;
-  --card-foreground: 160 20% 20%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 160 20% 20%;
-  --primary: 142.4 76.2% 36.3%; /* green-500 */
-  --primary-foreground: 0 0% 100%;
-  --secondary: 48 96% 89%; /* soft yellow for accent */
-  --secondary-foreground: 160 20% 20%;
-  --muted: 210 16% 93%; /* light blue-gray for backgrounds */
-  --muted-foreground: 160 20% 40%;
-  --accent: 12 80% 60%; /* orange accent for contrast */
-  --accent-foreground: 0 0% 100%;
+  --background: 222 28% 10%; /* slate-900 */
+  --foreground: 220 14% 96%; /* slate-100 */
+  --card: 217 19% 27%; /* slate-800 */
+  --card-foreground: 220 14% 96%;
+  --popover: 217 19% 27%;
+  --popover-foreground: 220 14% 96%;
+  --primary: 210 6% 60%; /* gray-500 */
+  --primary-foreground: 220 14% 96%;
+  --secondary: 214 11% 38%; /* silver */
+  --secondary-foreground: 220 14% 96%;
+  --muted: 215 16% 23%; /* slate-700 */
+  --muted-foreground: 220 14% 96%;
+  --accent: 220 14% 96%; /* slate-100 */
+  --accent-foreground: 217 19% 27%;
   --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 160 20% 85%;
-  --input: 160 20% 85%;
-  --ring: 142.4 76.2% 36.3%;
+  --destructive-foreground: 220 14% 96%;
+  --border: 215 16% 23%;
+  --input: 215 16% 23%;
+  --ring: 210 6% 60%;
   --radius: 0.75rem;
   }
 
@@ -54,8 +54,10 @@
     border-color: hsl(var(--border));
   }
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  /* Force dark theme globally */
+  transition: background 0.3s, color 0.3s;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

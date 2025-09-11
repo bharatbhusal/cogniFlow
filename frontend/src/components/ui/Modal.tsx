@@ -1,10 +1,10 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "./Button";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
   children: React.ReactNode;
   width?: string;
 }
@@ -12,7 +12,6 @@ interface ModalProps {
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
-  title,
   children,
   width,
 }) => {
@@ -27,7 +26,7 @@ export const Modal: React.FC<ModalProps> = ({
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className={`bg-white rounded-xl shadow-2xl p-8 relative w-full max-w-lg ${
+            className={`bg-card rounded-xl shadow-2xl p-4 relative w-full max-w-lg ${
               width || ""
             }`}
             initial={{ scale: 0.95, y: 40, opacity: 0 }}
@@ -39,19 +38,14 @@ export const Modal: React.FC<ModalProps> = ({
                 "0 8px 32px 0 rgba(60, 120, 60, 0.18), 0 1.5px 6px 0 rgba(0,0,0,0.08)",
             }}
           >
-            {title && (
-              <h3 className="text-2xl font-semibold mb-4 text-primary">
-                {title}
-              </h3>
-            )}
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            <Button
+              className="absolute top-2 right-2  text-gray-100"
               onClick={onClose}
               aria-label="Close"
               style={{ fontSize: 24 }}
             >
               &times;
-            </button>
+            </Button>
             {children}
           </motion.div>
         </motion.div>
