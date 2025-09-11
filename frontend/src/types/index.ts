@@ -64,6 +64,7 @@ export interface CreateProjectRequest {
 	name: string;
 	description?: string;
 	pdf_files?: File[];
+	delete_documents?: string[];
 }
 
 export interface QueryRequest {

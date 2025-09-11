@@ -174,6 +174,13 @@ class ApiClient {
 			formData.append("description", projectData.description);
 		}
 
+		if (projectData.delete_documents) {
+			const ids = Array.isArray(projectData.delete_documents)
+				? projectData.delete_documents.join(",")
+				: String(projectData.delete_documents);
+			formData.append("delete_documents", ids);
+		}
+
 		const files = projectData.pdf_files;
 		if (files) {
 			files.forEach((file: File) => {
