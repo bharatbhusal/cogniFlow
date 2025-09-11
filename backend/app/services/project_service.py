@@ -83,7 +83,7 @@ class ProjectService:
                     for doc in (project.documents or [])
                 ],
                 "messages": [
-                    {
+                    {       
                         "id": msg.id,
                         "content": msg.content,
                         "role": msg.role,
@@ -161,8 +161,8 @@ class ProjectService:
 
             # Save workflow and node configs if provided
             if workflow and isinstance(workflow, str) and len(workflow.strip())>0:
-                from app.repositories.workflow_node import WorkflowNodeRepository
-                await WorkflowNodeRepository.create(db=db, project_id=project.id, data={
+                from app.repositories.workflow import WorkflowRepository
+                await WorkflowRepository.create(db=db, project_id=project.id, data={
                     "definition": workflow
                 })
             if kb_node_config and isinstance(kb_node_config, str):
@@ -445,8 +445,8 @@ class ProjectService:
 
             # Update workflow and node configs if provided
             if workflow and isinstance(workflow, str) and len(workflow.strip()) > 0:
-                from app.repositories.workflow_node import WorkflowNodeRepository
-                await WorkflowNodeRepository.upsert(db=db, project_id=project_id, data={
+                from app.repositories.workflow import WorkflowRepository
+                await WorkflowRepository.upsert(db=db, project_id=project_id, data={
                     "definition": workflow
                 })
             if kb_node_config and isinstance(kb_node_config, str):

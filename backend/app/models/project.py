@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func, Index
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import relationship
 from app.config.db import Base
 from app.utils.cuid_str import cuid_str
@@ -22,7 +22,7 @@ class Project(Base):
     messages = relationship(
         "Message", back_populates="project", cascade="all, delete-orphan"
     )
-    workflow_node = relationship("WorkflowNode", back_populates="project", uselist=False)
+    workflow = relationship("Workflow", back_populates="project", uselist=False)
     knowledge_base_node = relationship("KnowledgeBaseNode", back_populates="project", uselist=False)
     llm_node = relationship("LlmNode", back_populates="project", uselist=False)
     web_search_node = relationship("WebSearchNode", back_populates="project", uselist=False)
