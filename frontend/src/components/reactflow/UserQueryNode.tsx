@@ -6,7 +6,19 @@ import CustomHandle from "./CustomHandle";
 import { Button } from "../ui/Button";
 import { CiTrash } from "react-icons/ci";
 
-export const UserQueryNode = ({ data, id }: any) => {
+interface UserQueryNodeData {
+  label: string;
+  onDelete?: (id: string) => void;
+  onDataChange?: (id: string, field: string, value: string) => void;
+}
+
+export const UserQueryNode = ({
+  data,
+  id,
+}: {
+  data: UserQueryNodeData;
+  id: string;
+}) => {
   return (
     <div className="p-1">
       <CustomHandle type="source" position={Position.Right} />

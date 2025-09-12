@@ -7,7 +7,21 @@ import { Label } from "../ui/Label";
 import { Button } from "../ui/Button";
 import { CiTrash } from "react-icons/ci";
 
-export const KnowledgeBaseNode = ({ data, id }: any) => {
+interface KnowledgeBaseNodeData {
+  label: string;
+  onDelete?: (id: string) => void;
+  onDataChange?: (id: string, field: string, value: string) => void;
+  openai_api_key?: string;
+  embedding_model_name?: string;
+}
+
+export const KnowledgeBaseNode = ({
+  data,
+  id,
+}: {
+  data: KnowledgeBaseNodeData;
+  id: string;
+}) => {
   return (
     <div className="p-1">
       <CustomHandle type="target" position={Position.Left} />

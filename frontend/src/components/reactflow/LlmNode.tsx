@@ -7,7 +7,16 @@ import { Label } from "../ui/Label";
 import { Button } from "../ui/Button";
 import { CiTrash } from "react-icons/ci";
 
-export const LlmNode = ({ data, id }: any) => {
+interface LlmNodeData {
+  label: string;
+  onDelete?: (id: string) => void;
+  onDataChange?: (id: string, field: string, value: string) => void;
+  llm_model_name?: string;
+  model_name?: string; // Alternative field name for compatibility
+  openai_api_key?: string;
+}
+
+export const LlmNode = ({ data, id }: { data: LlmNodeData; id: string }) => {
   return (
     <div className="p-1">
       <CustomHandle type="target" position={Position.Left} />

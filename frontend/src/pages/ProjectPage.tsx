@@ -1,8 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import ReactFlow, {
-  Background,
-  Controls,
+import React, { useEffect, useState, useCallback } from "react";
+import { useParams, useLocation } from "react-router-dom";
+import {
   applyNodeChanges,
   applyEdgeChanges,
   Connection,
@@ -14,34 +12,14 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { UserQueryNode } from "../components/reactflow/UserQueryNode";
-import { KnowledgeBaseNode } from "../components/reactflow/KnowledgeBaseNode";
-import { WebSearchNode } from "../components/reactflow/WebSearchNode";
-import { OutputNode } from "../components/reactflow/OutputNode";
-import { LlmNode } from "../components/reactflow/LlmNode";
 import { useProjects } from "../hooks/useProjects";
-import { Button } from "../components/ui/Button";
-import { FaChevronCircleLeft, FaSave } from "react-icons/fa";
-import { Card, CardContent } from "../components/ui/Card";
 import { WiStars } from "react-icons/wi";
 import { IoBookOutline } from "react-icons/io5";
 import { CiGlobe } from "react-icons/ci";
 import { LuFileOutput, LuFileInput } from "react-icons/lu";
-import { IoMenuOutline } from "react-icons/io5";
-import CustomEdge from "../components/reactflow/CustomEdge";
-import { ProjectConfig } from "../types";
-
-const nodeTypes = {
-  userQueryNode: UserQueryNode,
-  knowledgeBaseNode: KnowledgeBaseNode,
-  webSearchNode: WebSearchNode,
-  outputNode: OutputNode,
-  llmNode: LlmNode,
-};
-
-const edgeTypes = {
-  customEdge: CustomEdge,
-};
+import { Project, ProjectConfig } from "../types";
+import FlowEditor from "../components/reactflow/FlowEditor";
+import Sidebar from "../components/reactflow/Sidebar";
 
 const initialSidebarNodes = [
   {
@@ -67,7 +45,8 @@ const initialSidebarNodes = [
   },
 ];
 
-const FlowEditor: React.FC = () => {
+// Inner component that uses ReactFlow hooks
+const ProjectPageInner: React.FC = () => {
   const location = useLocation();
   const { projectId } = useParams<{ projectId: string }>();
   const searchParams = new URLSearchParams(location.search);
@@ -80,15 +59,16 @@ const FlowEditor: React.FC = () => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [sidebarNodes, setSidebarNodes] = useState(initialSidebarNodes);
 
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition } = useReactFlow(); // ✅ Now inside ReactFlowProvider
 
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(
     null
   );
-  const [currentNodeData, setCurrentNodeData] = useState<{
-    [key: string]: any;
-  }>({});
+  const [draftConfig, setDraftConfig] = useState<ProjectConfig | null>(null);
+
+  // const [currentNodeData, setCurrentNodeData] = useState<{
+  //   [key: string]: any;
+  // }>({});
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
     "idle"
   );
@@ -99,19 +79,11 @@ const FlowEditor: React.FC = () => {
 
     currentNodes.forEach((node) => {
       if (node.type === "knowledgeBaseNode") {
-        nodeData.knowledge_base_node = {
-          embedding_model_name: node.data.embedding_model_name || "",
-          openai_api_key: node.data.openai_api_key || "",
-        };
+        nodeData.knowledge_base_node = node.data;
       } else if (node.type === "llmNode") {
-        nodeData.llm_node = {
-          model_name: node.data.llm_model_name || node.data.model_name || "",
-          openai_api_key: node.data.openai_api_key || "",
-        };
+        nodeData.llm_node = node.data;
       } else if (node.type === "webSearchNode") {
-        nodeData.web_search_node = {
-          serpapi_api_key: node.data.serpapi_api_key || "",
-        };
+        nodeData.web_search_node = node.data;
       }
     });
 
@@ -121,13 +93,13 @@ const FlowEditor: React.FC = () => {
   // Helper function to create workflow nodes from project workflow
   const createWorkflowNodes = useCallback(
     (
-      project: any,
+      projectConfig: ProjectConfig,
       onDeleteNode: (id: string) => void,
       onNodeDataChange: (id: string, field: string, value: string) => void
     ) => {
-      if (!project?.workflow) return { nodes: [], edges: [] };
+      if (!projectConfig.workflow) return { nodes: [], edges: [] };
 
-      const workflowSteps = project.workflow.split("_");
+      const workflowSteps = projectConfig.workflow.split("_");
 
       const nodeTypeMapping: { [key: string]: string } = {
         kb: "knowledgeBaseNode",
@@ -149,9 +121,9 @@ const FlowEditor: React.FC = () => {
       const newEdges: Edge[] = [];
 
       const nodeDataMapping: { [key: string]: any } = {
-        knowledgeBaseNode: project.knowledge_base_node,
-        llmNode: project.llm_node,
-        webSearchNode: project.web_search_node,
+        knowledgeBaseNode: projectConfig.knowledge_base_node,
+        llmNode: projectConfig.llm_node,
+        webSearchNode: projectConfig.web_search_node,
       };
 
       allNodeTypes.forEach((nodeType, index) => {
@@ -163,10 +135,8 @@ const FlowEditor: React.FC = () => {
           data: {
             onDelete: onDeleteNode,
             onDataChange: onNodeDataChange,
-            label:
-              initialSidebarNodes.find((n) => n.id === nodeType)?.label ||
-              "Node",
-            ...(nodeDataMapping[nodeType] || {}),
+            label: initialSidebarNodes.find((n) => n.id === nodeType)?.label,
+            ...nodeDataMapping[nodeType],
           },
         });
 
@@ -179,7 +149,7 @@ const FlowEditor: React.FC = () => {
             target: targetNodeId,
             animated: true,
             type: "customEdge",
-            style: { strokeDasharray: "4 2", strokeWidth: 1 },
+            style: { strokeDasharray: "4 2", strokeWidth: 2 },
           });
         }
       });
@@ -273,12 +243,12 @@ const FlowEditor: React.FC = () => {
   // Helper function to check if a node is in the connected path
   const isNodeInConnectedPath = useCallback(
     (nodeId: string, currentNodes: Node[], currentEdges: Edge[]): boolean => {
-      const userQueryNodes = currentNodes.filter(
+      const userQueryNode = currentNodes.find(
         (n) => n.type === "userQueryNode"
       );
-      const outputNodes = currentNodes.filter((n) => n.type === "outputNode");
+      const outputNode = currentNodes.find((n) => n.type === "outputNode");
 
-      if (userQueryNodes.length === 0 || outputNodes.length === 0) {
+      if (!userQueryNode || !outputNode) {
         return false;
       }
 
@@ -304,8 +274,8 @@ const FlowEditor: React.FC = () => {
         return false;
       };
 
-      const userQueryNode = userQueryNodes[0];
-      const outputNode = outputNodes[0];
+      // const userQueryNode = userQueryNodes[0];
+      // const outputNode = outputNodes[0];
 
       // Check if there's a path from userQuery through this node to output
       const pathFromUserToNode = findPathToOutput(userQueryNode.id, nodeId);
@@ -317,9 +287,9 @@ const FlowEditor: React.FC = () => {
   );
 
   // Helper function to update projectConfig with proper data management
-  const updateProjectConfigWithConnectedNodes = useCallback(
+  const updateDraftConfigWithConnectedNodes = useCallback(
     (currentNodes: Node[], currentEdges: Edge[]) => {
-      setProjectConfig((prevConfig) => {
+      setDraftConfig((prevConfig) => {
         if (!prevConfig) return prevConfig;
 
         const newWorkflow = calculateWorkflowFromConnectedNodes(
@@ -335,81 +305,39 @@ const FlowEditor: React.FC = () => {
         const workflowTypes = newWorkflow ? newWorkflow.split("_") : [];
 
         // Find connected nodes of each type to preserve their data
-        const connectedKbNodes = currentNodes.filter(
+        const connectedKbNode = currentNodes.find(
           (n) =>
             n.type === "knowledgeBaseNode" &&
             isNodeInConnectedPath(n.id, currentNodes, currentEdges)
         );
-        const connectedLlmNodes = currentNodes.filter(
+        const connectedLlmNode = currentNodes.find(
           (n) =>
             n.type === "llmNode" &&
             isNodeInConnectedPath(n.id, currentNodes, currentEdges)
         );
-        const connectedWebNodes = currentNodes.filter(
+        const connectedWebNode = currentNodes.find(
           (n) =>
             n.type === "webSearchNode" &&
             isNodeInConnectedPath(n.id, currentNodes, currentEdges)
         );
 
         // Manage knowledge base node data
-        if (workflowTypes.includes("kb") && connectedKbNodes.length > 0) {
-          const kbNode = connectedKbNodes[0]; // Use first connected KB node
-          updatedConfig.knowledge_base_node = {
-            embedding_model_name:
-              kbNode.data.embedding_model_name ||
-              prevConfig.knowledge_base_node?.embedding_model_name ||
-              "",
-            openai_api_key:
-              kbNode.data.openai_api_key ||
-              prevConfig.knowledge_base_node?.openai_api_key ||
-              "",
-          };
-        } else if (!workflowTypes.includes("kb")) {
-          // Clear KB data if no KB node is connected
-          updatedConfig.knowledge_base_node = {
-            embedding_model_name: "",
-            openai_api_key: "",
-          };
+        if (workflowTypes.includes("kb") && connectedKbNode) {
+          const kbNode = connectedKbNode;
+          updatedConfig.knowledge_base_node = kbNode.data;
         }
 
         // Manage LLM node data
-        if (workflowTypes.includes("llm") && connectedLlmNodes.length > 0) {
-          const llmNode = connectedLlmNodes[0]; // Use first connected LLM node
-          updatedConfig.llm_node = {
-            llm_model_name:
-              llmNode.data.llm_model_name ||
-              llmNode.data.model_name ||
-              prevConfig.llm_node?.llm_model_name ||
-              "",
-            openai_api_key:
-              llmNode.data.openai_api_key ||
-              prevConfig.llm_node?.openai_api_key ||
-              "",
-          };
-        } else if (!workflowTypes.includes("llm")) {
-          // Clear LLM data if no LLM node is connected
-          updatedConfig.llm_node = {
-            llm_model_name: "",
-            openai_api_key: "",
-          };
+        if (workflowTypes.includes("llm") && connectedLlmNode) {
+          const llmNode = connectedLlmNode;
+          updatedConfig.llm_node = llmNode.data;
         }
 
         // Manage web search node data
-        if (workflowTypes.includes("web") && connectedWebNodes.length > 0) {
-          const webNode = connectedWebNodes[0]; // Use first connected web node
-          updatedConfig.web_search_node = {
-            serpapi_api_key:
-              webNode.data.serpapi_api_key ||
-              prevConfig.web_search_node?.serpapi_api_key ||
-              "",
-          };
-        } else if (!workflowTypes.includes("web")) {
-          // Clear web search data if no web node is connected
-          updatedConfig.web_search_node = {
-            serpapi_api_key: "",
-          };
+        if (workflowTypes.includes("web") && connectedWebNode) {
+          const webNode = connectedWebNode;
+          updatedConfig.web_search_node = webNode.data;
         }
-
         console.log(
           "Updated project config with connected nodes:",
           updatedConfig
@@ -429,16 +357,18 @@ const FlowEditor: React.FC = () => {
   useEffect(() => {
     if (currentProject && currentProject.workflow) {
       const { nodes: newNodes, edges: newEdges } = createWorkflowNodes(
-        currentProject,
+        {
+          workflow: currentProject.workflow,
+          llm_node: currentProject.llm_node,
+          knowledge_base_node: currentProject.knowledge_base_node,
+          web_search_node: currentProject.web_search_node,
+        },
         onDeleteNode,
         onNodeDataChange
       );
 
       setNodes(newNodes);
       setEdges(newEdges);
-
-      // Update current node data for sidebar display
-      setCurrentNodeData(getCurrentNodeDataFromCanvas(newNodes));
 
       const workflowSteps = currentProject.workflow.split("_");
       const nodeTypeMapping: { [key: string]: string } = {
@@ -461,23 +391,23 @@ const FlowEditor: React.FC = () => {
     } else {
       setNodes([]);
       setEdges([]);
-      setCurrentNodeData({});
+      setDraftConfig(null);
       setSidebarNodes(initialSidebarNodes);
     }
     setProjectConfig({
-      workflow: currentProject?.workflow || "",
-      knowledge_base_node: {
-        embedding_model_name:
-          currentProject?.knowledge_base_node?.embedding_model_name || "",
-        openai_api_key:
-          currentProject?.knowledge_base_node?.openai_api_key || "",
-      },
-      llm_node: {
-        llm_model_name: currentProject?.llm_node?.llm_model_name || "",
-        openai_api_key: currentProject?.llm_node?.openai_api_key || "",
-      },
+      workflow: currentProject?.workflow,
+      knowledge_base_node: currentProject?.knowledge_base_node,
+      llm_node: currentProject?.llm_node,
       web_search_node: {
-        serpapi_api_key: currentProject?.web_search_node?.serpapi_api_key || "",
+        serpapi_api_key: currentProject?.web_search_node?.serpapi_api_key,
+      },
+    });
+    setDraftConfig({
+      workflow: currentProject?.workflow,
+      knowledge_base_node: currentProject?.knowledge_base_node,
+      llm_node: currentProject?.llm_node,
+      web_search_node: {
+        serpapi_api_key: currentProject?.web_search_node?.serpapi_api_key,
       },
     });
   }, [
@@ -506,58 +436,14 @@ const FlowEditor: React.FC = () => {
           });
         }
 
-        // Update projectConfig with connected nodes logic
-        setProjectConfig((prevConfig) => {
-          if (!prevConfig) return prevConfig;
-
-          const remainingNodes = prevNodes.filter((n) => n.id !== nodeId);
-          const remainingEdges = edges.filter(
-            (edge) => edge.source !== nodeId && edge.target !== nodeId
-          );
-
-          const newWorkflow = calculateWorkflowFromConnectedNodes(
-            remainingNodes,
-            remainingEdges
-          );
-          const updatedConfig = { ...prevConfig };
-          updatedConfig.workflow = newWorkflow;
-
-          // Get connected workflow node types
-          const workflowTypes = newWorkflow ? newWorkflow.split("_") : [];
-
-          // If the deleted node type is no longer in the connected workflow, clear its data
-          if (
-            nodeToDelete.type === "knowledgeBaseNode" &&
-            !workflowTypes.includes("kb")
-          ) {
-            updatedConfig.knowledge_base_node = {
-              embedding_model_name: "",
-              openai_api_key: "",
-            };
-          } else if (
-            nodeToDelete.type === "llmNode" &&
-            !workflowTypes.includes("llm")
-          ) {
-            updatedConfig.llm_node = {
-              llm_model_name: "",
-              openai_api_key: "",
-            };
-          } else if (
-            nodeToDelete.type === "webSearchNode" &&
-            !workflowTypes.includes("web")
-          ) {
-            updatedConfig.web_search_node = {
-              serpapi_api_key: "",
-            };
-          }
-
-          return updatedConfig;
-        });
-
         const remainingNodes = prevNodes.filter((n) => n.id !== nodeId);
 
         // Update current node data for sidebar display
-        setCurrentNodeData(getCurrentNodeDataFromCanvas(remainingNodes));
+        setDraftConfig((prevDraftConfig) => ({
+          ...prevDraftConfig,
+          ...getCurrentNodeDataFromCanvas(remainingNodes),
+          workflow: "Not Configured",
+        }));
 
         return remainingNodes;
       });
@@ -569,7 +455,7 @@ const FlowEditor: React.FC = () => {
         )
       );
     },
-    [edges, calculateWorkflowFromConnectedNodes, getCurrentNodeDataFromCanvas]
+    [edges, getCurrentNodeDataFromCanvas]
   );
 
   const onNodeDataChange = useCallback(
@@ -581,28 +467,10 @@ const FlowEditor: React.FC = () => {
             : node
         );
 
-        // Update current node data for sidebar display
-        setCurrentNodeData(getCurrentNodeDataFromCanvas(updatedNodes));
-
-        // Update projectConfig only if the node is connected in the workflow
-        setProjectConfig((prevConfig) => {
-          if (!prevConfig) return prevConfig;
-
+        // Update draftConfig only if the node is connected in the workflow
+        setDraftConfig((prevConfig) => {
           const node = updatedNodes.find((n) => n.id === nodeId);
           if (!node) return prevConfig;
-
-          // Check if this node is in the connected path
-          const isConnected = isNodeInConnectedPath(
-            nodeId,
-            updatedNodes,
-            edges
-          );
-          if (!isConnected) {
-            console.log(
-              `Node ${nodeId} is not connected, skipping config update`
-            );
-            return prevConfig;
-          }
 
           const updatedConfig = { ...prevConfig };
 
@@ -639,53 +507,42 @@ const FlowEditor: React.FC = () => {
     [edges, isNodeInConnectedPath]
   );
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      setNodes((nds) => {
-        const updatedNodes = applyNodeChanges(changes, nds);
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => {
+      const updatedNodes = applyNodeChanges(changes, nds);
 
-        // Update current node data for sidebar display
-        setCurrentNodeData(getCurrentNodeDataFromCanvas(updatedNodes));
-
-        changes.forEach((change) => {
-          if (change.type === "remove") {
-            const removedNode = nds.find((n) => n.id === change.id);
-            if (removedNode) {
-              const sidebarNode = initialSidebarNodes.find(
-                (n) => n.id === removedNode.type
-              );
-              if (sidebarNode) {
-                setSidebarNodes((currentSidebarNodes) => {
-                  if (
-                    !currentSidebarNodes.some((s) => s.id === sidebarNode.id)
-                  ) {
-                    return [...currentSidebarNodes, sidebarNode];
-                  }
-                  return currentSidebarNodes;
-                });
-              }
+      changes.forEach((change) => {
+        if (change.type === "remove") {
+          const removedNode = nds.find((n) => n.id === change.id);
+          if (removedNode) {
+            const sidebarNode = initialSidebarNodes.find(
+              (n) => n.id === removedNode.type
+            );
+            if (sidebarNode) {
+              setSidebarNodes((currentSidebarNodes) => {
+                if (!currentSidebarNodes.some((s) => s.id === sidebarNode.id)) {
+                  return [...currentSidebarNodes, sidebarNode];
+                }
+                return currentSidebarNodes;
+              });
             }
           }
-        });
-
-        return updatedNodes;
+        }
       });
-    },
-    [getCurrentNodeDataFromCanvas]
-  );
+
+      return updatedNodes;
+    });
+  }, []);
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdges((prevEdges) => {
         const updatedEdges = applyEdgeChanges(changes, prevEdges);
 
-        // Update workflow and node data when edges are changed
-        updateProjectConfigWithConnectedNodes(nodes, updatedEdges);
-
         return updatedEdges;
       });
     },
-    [nodes, updateProjectConfigWithConnectedNodes]
+    [nodes]
   );
 
   const onConnect = useCallback(
@@ -704,12 +561,12 @@ const FlowEditor: React.FC = () => {
         const updatedEdges = [...prevEdges, newEdge];
 
         // Update workflow and node data when new connection is made
-        updateProjectConfigWithConnectedNodes(nodes, updatedEdges);
+        updateDraftConfigWithConnectedNodes(nodes, updatedEdges);
 
         return updatedEdges;
       });
     },
-    [nodes, updateProjectConfigWithConnectedNodes]
+    [nodes, updateDraftConfigWithConnectedNodes]
   );
 
   const onDragStart = useCallback(
@@ -735,6 +592,21 @@ const FlowEditor: React.FC = () => {
       });
 
       const newId = `${type}-${Date.now()}`;
+
+      // Get default configuration data based on node type
+      const getNodeData = (nodeType: string) => {
+        switch (nodeType) {
+          case "knowledgeBaseNode":
+            return draftConfig?.knowledge_base_node || {};
+          case "llmNode":
+            return draftConfig?.llm_node || {};
+          case "webSearchNode":
+            return draftConfig?.web_search_node || {};
+          default:
+            return {};
+        }
+      };
+
       const newNode: Node = {
         id: newId,
         type,
@@ -743,6 +615,7 @@ const FlowEditor: React.FC = () => {
           label,
           onDelete: onDeleteNode,
           onDataChange: onNodeDataChange,
+          ...getNodeData(type), // Add default config data
         },
       };
 
@@ -750,41 +623,41 @@ const FlowEditor: React.FC = () => {
         const updatedNodes = [...nds, newNode];
 
         // Update current node data for sidebar display
-        setCurrentNodeData(getCurrentNodeDataFromCanvas(updatedNodes));
+        // setCurrentNodeData(getCurrentNodeDataFromCanvas(updatedNodes));
 
         return updatedNodes;
       });
       setSidebarNodes((list) => list.filter((n) => n.id !== type));
 
       // Initialize node data in projectConfig when a new node is added (but don't update workflow until connected)
-      setProjectConfig((prevConfig) => {
-        if (!prevConfig) return prevConfig;
+      // setProjectConfig((prevConfig) => {
+      //   if (!prevConfig) return prevConfig;
 
-        const updatedConfig = { ...prevConfig };
+      //   const updatedConfig = { ...prevConfig };
 
-        // Initialize node data if it doesn't exist
-        if (
-          type === "knowledgeBaseNode" &&
-          !updatedConfig.knowledge_base_node
-        ) {
-          updatedConfig.knowledge_base_node = {
-            embedding_model_name: "",
-            openai_api_key: "",
-          };
-        } else if (type === "llmNode" && !updatedConfig.llm_node) {
-          updatedConfig.llm_node = {
-            llm_model_name: "",
-            openai_api_key: "",
-          };
-        } else if (type === "webSearchNode" && !updatedConfig.web_search_node) {
-          updatedConfig.web_search_node = {
-            serpapi_api_key: "",
-          };
-        }
+      //   // Initialize node data if it doesn't exist
+      //   if (
+      //     type === "knowledgeBaseNode" &&
+      //     !updatedConfig.knowledge_base_node
+      //   ) {
+      //     updatedConfig.knowledge_base_node = {
+      //       embedding_model_name: "",
+      //       openai_api_key: "",
+      //     };
+      //   } else if (type === "llmNode" && !updatedConfig.llm_node) {
+      //     updatedConfig.llm_node = {
+      //       llm_model_name: "",
+      //       openai_api_key: "",
+      //     };
+      //   } else if (type === "webSearchNode" && !updatedConfig.web_search_node) {
+      //     updatedConfig.web_search_node = {
+      //       serpapi_api_key: "",
+      //     };
+      //   }
 
-        // Don't update workflow here - it will be updated when nodes are connected via edges
-        return updatedConfig;
-      });
+      //   // Don't update workflow here - it will be updated when nodes are connected via edges
+      //   return updatedConfig;
+      // });
     },
     [screenToFlowPosition, onDeleteNode, onNodeDataChange]
   );
@@ -836,12 +709,12 @@ const FlowEditor: React.FC = () => {
   }, [currentProject, projectConfig, projectId, update]);
 
   return (
-    <div className="flex h-screen w-full">
+    <div className="h-screen w-full flex">
       <div className="w-64">
         <Sidebar
           project={currentProject}
           projectConfig={projectConfig}
-          currentNodeData={currentNodeData}
+          draftConfig={draftConfig}
           sidebarNodes={sidebarNodes}
           onDragStart={onDragStart}
           onSaveProject={handleSaveProject}
@@ -849,275 +722,25 @@ const FlowEditor: React.FC = () => {
           saveStatus={saveStatus}
         />
       </div>
-      <div className="flex-1" ref={reactFlowWrapper}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          fitView
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </div>
+      <FlowEditor
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+      />
     </div>
   );
 };
 
-interface SidebarProps {
-  project: any;
-  projectConfig: ProjectConfig | null;
-  currentNodeData: { [key: string]: any };
-  sidebarNodes: typeof initialSidebarNodes;
-  onDragStart: (
-    event: React.DragEvent,
-    nodeType: string,
-    label: string
-  ) => void;
-  onSaveProject: () => Promise<void>;
-  isSaving: boolean;
-  saveStatus: "idle" | "success" | "error";
-}
-
-const Sidebar: React.FC<SidebarProps> = ({
-  project,
-  projectConfig,
-  currentNodeData,
-  sidebarNodes,
-  onDragStart,
-  onSaveProject,
-  isSaving,
-  saveStatus,
-}) => {
-  const navigate = useNavigate();
-  return (
-    <aside className="w-full shadow p-4 h-full overflow-y-auto bg-gray-900 text-white flex flex-col gap-4">
-      <div className="space-y-4">
-        <div className="mx-auto">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => navigate(-1)}>
-              <FaChevronCircleLeft size={24} />
-            </Button>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {project?.name}
-            </h1>
-          </div>
-          {project?.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {project.description!.length > 200
-                ? project.description!.slice(0, 200) + "..."
-                : project.description}
-            </p>
-          )}
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-            Project Info
-          </h3>
-          <Card>
-            <CardContent className="p-3">
-              <div className="space-y-2 text-sm">
-                <p>
-                  <span className="font-medium">Documents:</span>{" "}
-                  {project?.documents?.length || project?.documents_count || 0}
-                </p>
-                <p>
-                  <span className="font-medium">Messages:</span>{" "}
-                  {project?.messages?.length || project?.messages_count || 0}
-                </p>
-                <p>
-                  <span className="font-medium">Created:</span>{" "}
-                  {new Date(project?.created_at!).toLocaleDateString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        {(projectConfig || Object.keys(currentNodeData).length > 0) && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Current Node Data
-            </h3>
-            <Card>
-              <CardContent className="p-3">
-                <div className="space-y-2 text-xs">
-                  <p>
-                    <span className="font-medium">Workflow:</span>{" "}
-                    {projectConfig?.workflow || "Not connected"}
-                  </p>
-                  {currentNodeData.knowledge_base_node && (
-                    <>
-                      {currentNodeData.knowledge_base_node
-                        .embedding_model_name && (
-                        <p>
-                          <span className="font-medium">KB Model:</span>{" "}
-                          {
-                            currentNodeData.knowledge_base_node
-                              .embedding_model_name
-                          }
-                        </p>
-                      )}
-                      <p>
-                        <span className="font-medium">KB Key:</span>{" "}
-                        {currentNodeData.knowledge_base_node.openai_api_key
-                          ? "Configured"
-                          : "Not configured"}
-                      </p>
-                    </>
-                  )}
-                  {currentNodeData.llm_node && (
-                    <>
-                      {currentNodeData.llm_node.model_name && (
-                        <p>
-                          <span className="font-medium">LLM Model:</span>{" "}
-                          {currentNodeData.llm_node.model_name}
-                        </p>
-                      )}
-                      <p>
-                        <span className="font-medium">LLM Key:</span>{" "}
-                        {currentNodeData.llm_node.openai_api_key
-                          ? "Configured"
-                          : "Not configured"}
-                      </p>
-                    </>
-                  )}
-                  {currentNodeData.web_search_node && (
-                    <p>
-                      <span className="font-medium">Web Search:</span>{" "}
-                      {currentNodeData.web_search_node.serpapi_api_key
-                        ? "Configured"
-                        : "Not configured"}
-                    </p>
-                  )}
-                  {Object.keys(currentNodeData).length === 0 &&
-                    !projectConfig?.workflow && (
-                      <p className="text-gray-500 italic">No nodes on canvas</p>
-                    )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        {projectConfig && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Saved Config
-            </h3>
-            <Card>
-              <CardContent className="p-3">
-                <div className="space-y-2 text-xs">
-                  <p>
-                    <span className="font-medium">Workflow:</span>{" "}
-                    {projectConfig.workflow}
-                  </p>
-                  {projectConfig?.knowledge_base_node?.embedding_model_name && (
-                    <p>
-                      <span className="font-medium">KB Model:</span>{" "}
-                      {projectConfig.knowledge_base_node.embedding_model_name}
-                    </p>
-                  )}
-                  {projectConfig?.knowledge_base_node?.openai_api_key && (
-                    <p>
-                      <span className="font-medium">KB Key:</span>{" "}
-                      {projectConfig.knowledge_base_node.openai_api_key}
-                    </p>
-                  )}
-                  {projectConfig?.llm_node?.llm_model_name && (
-                    <p>
-                      <span className="font-medium">LLM Model:</span>{" "}
-                      {projectConfig.llm_node.llm_model_name}
-                    </p>
-                  )}
-                  {projectConfig?.llm_node?.openai_api_key && (
-                    <p>
-                      <span className="font-medium">LLM Key:</span>{" "}
-                      {projectConfig.llm_node.openai_api_key}
-                    </p>
-                  )}
-                  {projectConfig?.web_search_node?.serpapi_api_key && (
-                    <p>
-                      <span className="font-medium">Web Search:</span>{" "}
-                      {projectConfig?.web_search_node?.serpapi_api_key
-                        ? "Configured"
-                        : "Not configured"}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        <div>
-          <Button
-            onClick={onSaveProject}
-            disabled={isSaving}
-            className="w-full"
-            variant={
-              saveStatus === "success"
-                ? "secondary"
-                : saveStatus === "error"
-                ? "destructive"
-                : "default"
-            }
-          >
-            {isSaving ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving...
-              </div>
-            ) : saveStatus === "success" ? (
-              <div className="flex items-center gap-2">
-                <FaSave />
-                Saved!
-              </div>
-            ) : saveStatus === "error" ? (
-              <div className="flex items-center gap-2">
-                <FaSave />
-                Error - Retry
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <FaSave />
-                Save Project
-              </div>
-            )}
-          </Button>
-        </div>
-      </div>
-      <h3 className="text-sm font-medium mb-2">Nodes</h3>
-      <div className="flex flex-col gap-2">
-        {sidebarNodes.map((node) => (
-          <div
-            key={node.id}
-            className="cursor-move flex justify-between items-center bg-gray-800 rounded p-2 text-center text-sm border border-gray-700 hover:bg-gray-700 transition"
-            draggable
-            onDragStart={(e) => onDragStart(e, node.id, node.label)}
-          >
-            <div className="flex items-center gap-2">
-              {node.icon}
-              {node.label}
-            </div>
-            <IoMenuOutline />
-          </div>
-        ))}
-      </div>
-    </aside>
-  );
-};
-
+// Main component that provides ReactFlow context
 const ProjectPage: React.FC = () => {
   return (
-    <div className="h-screen w-full flex">
-      <ReactFlowProvider>
-        <FlowEditor />
-      </ReactFlowProvider>
-    </div>
+    <ReactFlowProvider>
+      <ProjectPageInner />
+    </ReactFlowProvider>
   );
 };
 

@@ -6,7 +6,20 @@ import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Button } from "../ui/Button";
 
-export const WebSearchNode = ({ data, id }: any) => {
+interface WebSearchNodeData {
+  label: string;
+  onDelete?: (id: string) => void;
+  onDataChange?: (id: string, field: string, value: string) => void;
+  serpapi_api_key?: string;
+}
+
+export const WebSearchNode = ({
+  data,
+  id,
+}: {
+  data: WebSearchNodeData;
+  id: string;
+}) => {
   return (
     <div className="p-1">
       <CustomHandle type="target" position={Position.Left} />

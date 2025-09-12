@@ -6,7 +6,19 @@ import CustomHandle from "./CustomHandle";
 import { CiTrash } from "react-icons/ci";
 import { Button } from "../ui/Button";
 
-export const OutputNode = ({ data, id }: any) => {
+interface OutputNodeData {
+  label: string;
+  onDelete?: (id: string) => void;
+  onDataChange?: (id: string, field: string, value: string) => void;
+}
+
+export const OutputNode = ({
+  data,
+  id,
+}: {
+  data: OutputNodeData;
+  id: string;
+}) => {
   return (
     <div className="p-1">
       <CustomHandle type="target" position={Position.Left} />
