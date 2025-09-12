@@ -17,7 +17,7 @@ import { WiStars } from "react-icons/wi";
 import { IoBookOutline } from "react-icons/io5";
 import { CiGlobe } from "react-icons/ci";
 import { LuFileOutput, LuFileInput } from "react-icons/lu";
-import { Project, ProjectConfig } from "../types";
+import { ProjectConfig } from "../types";
 import FlowEditor from "../components/reactflow/FlowEditor";
 import Sidebar from "../components/reactflow/Sidebar";
 
@@ -45,7 +45,6 @@ const initialSidebarNodes = [
   },
 ];
 
-// Inner component that uses ReactFlow hooks
 const ProjectPageInner: React.FC = () => {
   const location = useLocation();
   const { projectId } = useParams<{ projectId: string }>();
@@ -59,21 +58,17 @@ const ProjectPageInner: React.FC = () => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [sidebarNodes, setSidebarNodes] = useState(initialSidebarNodes);
 
-  const { screenToFlowPosition } = useReactFlow(); // ✅ Now inside ReactFlowProvider
+  const { screenToFlowPosition } = useReactFlow();
 
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(
     null
   );
   const [draftConfig, setDraftConfig] = useState<ProjectConfig | null>(null);
 
-  // const [currentNodeData, setCurrentNodeData] = useState<{
-  //   [key: string]: any;
-  // }>({});
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
     "idle"
   );
 
-  // Helper function to extract current node data from canvas
   const getCurrentNodeDataFromCanvas = useCallback((currentNodes: Node[]) => {
     const nodeData: { [key: string]: any } = {};
 
@@ -90,7 +85,6 @@ const ProjectPageInner: React.FC = () => {
     return nodeData;
   }, []);
 
-  // Helper function to create workflow nodes from project workflow
   const createWorkflowNodes = useCallback(
     (
       projectConfig: ProjectConfig,
@@ -159,13 +153,10 @@ const ProjectPageInner: React.FC = () => {
     []
   );
 
-  // Helper function to calculate workflow based on connected nodes
   const calculateWorkflowFromConnectedNodes = useCallback(
     (currentNodes: Node[], currentEdges: Edge[]) => {
-      // Find nodes that are connected in the workflow chain
       const connectedNodes = new Set<string>();
 
-      // Start from userQueryNode and follow the connections
       const userQueryNodes = currentNodes.filter(
         (n) => n.type === "userQueryNode"
       );
@@ -175,7 +166,6 @@ const ProjectPageInner: React.FC = () => {
         return "";
       }
 
-      // Function to find connected path from source to target
       const findConnectedPath = (
         sourceId: string,
         visited: Set<string> = new Set()
@@ -204,7 +194,6 @@ const ProjectPageInner: React.FC = () => {
         return [];
       };
 
-      // Find path from userQuery to output
       const userQueryNode = userQueryNodes[0];
       const connectedPath = findConnectedPath(userQueryNode.id);
 
@@ -212,7 +201,6 @@ const ProjectPageInner: React.FC = () => {
         return "";
       }
 
-      // Extract workflow node types from the connected path (excluding userQuery and output)
       const workflowParts: string[] = [];
       const pathNodes = connectedPath
         .map((nodeId) => currentNodes.find((n) => n.id === nodeId))
@@ -240,7 +228,6 @@ const ProjectPageInner: React.FC = () => {
     []
   );
 
-  // Helper function to check if a node is in the connected path
   const isNodeInConnectedPath = useCallback(
     (nodeId: string, currentNodes: Node[], currentEdges: Edge[]): boolean => {
       const userQueryNode = currentNodes.find(
@@ -274,10 +261,6 @@ const ProjectPageInner: React.FC = () => {
         return false;
       };
 
-      // const userQueryNode = userQueryNodes[0];
-      // const outputNode = outputNodes[0];
-
-      // Check if there's a path from userQuery through this node to output
       const pathFromUserToNode = findPathToOutput(userQueryNode.id, nodeId);
       const pathFromNodeToOutput = findPathToOutput(nodeId, outputNode.id);
 
@@ -286,7 +269,6 @@ const ProjectPageInner: React.FC = () => {
     []
   );
 
-  // Helper function to update projectConfig with proper data management
   const updateDraftConfigWithConnectedNodes = useCallback(
     (currentNodes: Node[], currentEdges: Edge[]) => {
       setDraftConfig((prevConfig) => {
@@ -298,13 +280,10 @@ const ProjectPageInner: React.FC = () => {
         );
         const updatedConfig = { ...prevConfig };
 
-        // Update workflow
         updatedConfig.workflow = newWorkflow;
 
-        // Get connected workflow node types
         const workflowTypes = newWorkflow ? newWorkflow.split("_") : [];
 
-        // Find connected nodes of each type to preserve their data
         const connectedKbNode = currentNodes.find(
           (n) =>
             n.type === "knowledgeBaseNode" &&
@@ -321,19 +300,16 @@ const ProjectPageInner: React.FC = () => {
             isNodeInConnectedPath(n.id, currentNodes, currentEdges)
         );
 
-        // Manage knowledge base node data
         if (workflowTypes.includes("kb") && connectedKbNode) {
           const kbNode = connectedKbNode;
           updatedConfig.knowledge_base_node = kbNode.data;
         }
 
-        // Manage LLM node data
         if (workflowTypes.includes("llm") && connectedLlmNode) {
           const llmNode = connectedLlmNode;
           updatedConfig.llm_node = llmNode.data;
         }
 
-        // Manage web search node data
         if (workflowTypes.includes("web") && connectedWebNode) {
           const webNode = connectedWebNode;
           updatedConfig.web_search_node = webNode.data;
@@ -423,7 +399,6 @@ const ProjectPageInner: React.FC = () => {
         const nodeToDelete = prevNodes.find((n) => n.id === nodeId);
         if (!nodeToDelete) return prevNodes;
 
-        // Add the node back to sidebar if it's not already there
         const sidebarNode = initialSidebarNodes.find(
           (n) => n.id === nodeToDelete.type
         );
@@ -438,7 +413,6 @@ const ProjectPageInner: React.FC = () => {
 
         const remainingNodes = prevNodes.filter((n) => n.id !== nodeId);
 
-        // Update current node data for sidebar display
         setDraftConfig((prevDraftConfig) => ({
           ...prevDraftConfig,
           ...getCurrentNodeDataFromCanvas(remainingNodes),
@@ -448,7 +422,6 @@ const ProjectPageInner: React.FC = () => {
         return remainingNodes;
       });
 
-      // Remove connected edges
       setEdges((prevEdges) =>
         prevEdges.filter(
           (edge) => edge.source !== nodeId && edge.target !== nodeId
@@ -467,7 +440,6 @@ const ProjectPageInner: React.FC = () => {
             : node
         );
 
-        // Update draftConfig only if the node is connected in the workflow
         setDraftConfig((prevConfig) => {
           const node = updatedNodes.find((n) => n.id === nodeId);
           if (!node) return prevConfig;
@@ -480,7 +452,6 @@ const ProjectPageInner: React.FC = () => {
               [field]: value,
             };
           } else if (node.type === "llmNode") {
-            // Map the field name correctly for llm_node
             const mappedField =
               field === "llm_model_name" ? "llm_model_name" : field;
             updatedConfig.llm_node = {
@@ -560,7 +531,6 @@ const ProjectPageInner: React.FC = () => {
       setEdges((prevEdges) => {
         const updatedEdges = [...prevEdges, newEdge];
 
-        // Update workflow and node data when new connection is made
         updateDraftConfigWithConnectedNodes(nodes, updatedEdges);
 
         return updatedEdges;
@@ -593,7 +563,6 @@ const ProjectPageInner: React.FC = () => {
 
       const newId = `${type}-${Date.now()}`;
 
-      // Get default configuration data based on node type
       const getNodeData = (nodeType: string) => {
         switch (nodeType) {
           case "knowledgeBaseNode":
@@ -615,49 +584,16 @@ const ProjectPageInner: React.FC = () => {
           label,
           onDelete: onDeleteNode,
           onDataChange: onNodeDataChange,
-          ...getNodeData(type), // Add default config data
+          ...getNodeData(type),
         },
       };
 
       setNodes((nds) => {
         const updatedNodes = [...nds, newNode];
 
-        // Update current node data for sidebar display
-        // setCurrentNodeData(getCurrentNodeDataFromCanvas(updatedNodes));
-
         return updatedNodes;
       });
       setSidebarNodes((list) => list.filter((n) => n.id !== type));
-
-      // Initialize node data in projectConfig when a new node is added (but don't update workflow until connected)
-      // setProjectConfig((prevConfig) => {
-      //   if (!prevConfig) return prevConfig;
-
-      //   const updatedConfig = { ...prevConfig };
-
-      //   // Initialize node data if it doesn't exist
-      //   if (
-      //     type === "knowledgeBaseNode" &&
-      //     !updatedConfig.knowledge_base_node
-      //   ) {
-      //     updatedConfig.knowledge_base_node = {
-      //       embedding_model_name: "",
-      //       openai_api_key: "",
-      //     };
-      //   } else if (type === "llmNode" && !updatedConfig.llm_node) {
-      //     updatedConfig.llm_node = {
-      //       llm_model_name: "",
-      //       openai_api_key: "",
-      //     };
-      //   } else if (type === "webSearchNode" && !updatedConfig.web_search_node) {
-      //     updatedConfig.web_search_node = {
-      //       serpapi_api_key: "",
-      //     };
-      //   }
-
-      //   // Don't update workflow here - it will be updated when nodes are connected via edges
-      //   return updatedConfig;
-      // });
     },
     [screenToFlowPosition, onDeleteNode, onNodeDataChange]
   );
@@ -691,19 +627,17 @@ const ProjectPageInner: React.FC = () => {
         web_search_node: {
           serpapi_api_key: projectConfig.web_search_node?.serpapi_api_key || "",
         },
-      } as any; // Type assertion to bypass strict type checking
+      } as any;
 
       await update(projectId, updateData);
       setSaveStatus("success");
       console.log("Project saved successfully!");
 
-      // Reset success status after 2 seconds
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (error) {
       setSaveStatus("error");
       console.error("Error saving project:", error);
 
-      // Reset error status after 3 seconds
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
   }, [currentProject, projectConfig, projectId, update]);
@@ -735,7 +669,6 @@ const ProjectPageInner: React.FC = () => {
   );
 };
 
-// Main component that provides ReactFlow context
 const ProjectPage: React.FC = () => {
   return (
     <ReactFlowProvider>
