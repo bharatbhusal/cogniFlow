@@ -9,7 +9,7 @@ import hashlib
 from app.repositories.project import ProjectRepository
 from app.repositories.document import DocumentRepository
 from app.services.knowledge_base import KnowledgeBaseService
-from app.types.responses import *
+from app.utils.errors import *
 from app.utils.cuid_str import cuid_str
 from app.utils.pockity import upload_file_to_pockity
 import json

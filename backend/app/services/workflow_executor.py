@@ -1,8 +1,7 @@
 from typing import Dict, Any, List, Optional
 from app.services.web_search_service import WebSearchService
-from app.types.responses import (
+from app.utils.errors import (
     WorkflowExecutionError,
-    WorkflowParsingError,
     InvalidWorkflowError,
     RAGPipelineError,
 )

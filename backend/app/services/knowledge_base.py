@@ -1,11 +1,10 @@
-import os
 import uuid
 from typing import List, Optional, Dict, Any
 import fitz as PyMuPDF 
 import chromadb
 from openai import AsyncOpenAI
 from app.config.env import get_settings
-from app.types.responses import (
+from app.utils.errors import (
     DocumentProcessingError,
     TextExtractionError,
     ChunkingError,

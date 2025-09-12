@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from openai import AsyncOpenAI
 from app.config.env import get_settings
-from app.types.responses import (
+from app.utils.errors import (
     OpenAIError,
     EmbeddingError,
     TokenLimitExceededError,
