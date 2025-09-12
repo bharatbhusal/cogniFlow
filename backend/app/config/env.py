@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     AUTH_SECRET_KEY: str = os.getenv("AUTH_SECRET_KEY")
 
     # OpenAI Configuration
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    # OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
 
     # ChromaDB Configuration
     CHROMADB_HOST: str = os.getenv("CHROMADB_HOST", "localhost")

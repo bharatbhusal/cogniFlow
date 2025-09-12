@@ -3,8 +3,8 @@ import uuid
 from typing import List, Optional, Dict, Any
 import fitz as PyMuPDF 
 import chromadb
+from openai import AsyncOpenAI
 from app.config.env import get_settings
-from app.services.openai_service import openai_service
 from app.types.responses import (
     DocumentProcessingError,
     TextExtractionError,
@@ -13,13 +13,24 @@ from app.types.responses import (
     ChromaDBError,
     DocumentIngestionError,
     RetrievalError,
-    ContextRetrievalError
+    ContextRetrievalError,
+    EmbeddingError,
+    AIQuotaExceededError
 )
 
 settings = get_settings()
 
 class KnowledgeBaseService:
-    def __init__(self):
+    def __init__(self, api_key: str, model: str):
+        """Initialize Knowledge Base service with required API key and model"""
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
+        if not model:
+            raise ValueError("Embedding model is required")
+            
+        self.api_key = api_key
+        self.model = model
+        
         # Initialize ChromaDB client
         try:
             # Use persistent client with configured directory
@@ -33,6 +44,52 @@ class KnowledgeBaseService:
                 message="Failed to initialize ChromaDB",
                 details=str(e)
             )
+        
+        # Initialize OpenAI client for embeddings
+        self.openai_client = AsyncOpenAI(api_key=api_key)
+        
+    async def generate_embeddings(
+        self,
+        texts: List[str],
+    ) -> List[List[float]]:
+        """Generate embeddings for a list of texts"""
+        try:
+            # Clean and prepare texts
+            cleaned_texts = [
+                str(text).replace("\n", " ").strip()
+                for text in texts
+                if text and str(text).strip()
+            ]
+
+            if not cleaned_texts:
+                raise EmbeddingError(
+                    message="No valid texts provided for embedding",
+                    details="All provided texts were empty or invalid",
+                )
+            
+            response = await self.openai_client.embeddings.create(
+                model=self.model, input=cleaned_texts
+            )
+
+            return [embedding.embedding for embedding in response.data]
+
+        except Exception as e:
+            if "quota" in str(e).lower():
+                raise AIQuotaExceededError(
+                    message="OpenAI embedding quota exceeded", details=str(e)
+                )
+            else:
+                raise EmbeddingError(
+                    message="Embedding generation failed", details=str(e)
+                )
+
+    async def generate_single_embedding(
+        self,
+        text: str,
+    ) -> List[float]:
+        """Generate embedding for a single text"""
+        embeddings = await self.generate_embeddings([text])
+        return embeddings[0]
     
     def _get_or_create_collection(self):
         """Get or create the main documents collection"""
@@ -53,7 +110,7 @@ class KnowledgeBaseService:
         filename: str,
         document_id: str,
         chunk_size: int = 1000,
-        chunk_overlap: int = 200
+        chunk_overlap: int = 200,
     ) -> Dict[str, Any]:
         """Process a PDF document from memory content"""
         try:
@@ -73,7 +130,7 @@ class KnowledgeBaseService:
                 )
             
             # Generate embeddings for chunks
-            embeddings = await openai_service.generate_embeddings(chunks)
+            embeddings = await self.generate_embeddings(chunks)
             # Store in vector database
             chunk_ids = await self.store_chunks_in_vectordb(
                 chunks=chunks,
@@ -260,7 +317,7 @@ class KnowledgeBaseService:
         """Retrieve most relevant text chunks for a query"""
         try:
             # Generate embedding for the query
-            query_embedding = await openai_service.generate_single_embedding(query)
+            query_embedding = await self.generate_single_embedding(query)
             if not document_ids:
                 raise ValueError("document_ids must be provided for context retrieval")
             # Prepare query filters
@@ -299,12 +356,12 @@ class KnowledgeBaseService:
         self,
         query: str,
         n_results: int = 5,
-        chromadb_chunk_ids: List[str] = None
+        chromadb_chunk_ids: List[str] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve relevant context using specific ChromaDB chunk IDs"""
         try:
             # Generate embedding for the query
-            query_embedding = await openai_service.generate_single_embedding(query)
+            query_embedding = await self.generate_single_embedding(query)
             
             # Query only specific chunk IDs if provided
             if chromadb_chunk_ids:
@@ -495,6 +552,3 @@ class KnowledgeBaseService:
                 message="Failed to delete document",
                 details=str(e)
             )
-
-# Singleton instance
-knowledge_base_service = KnowledgeBaseService()

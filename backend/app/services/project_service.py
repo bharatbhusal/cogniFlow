@@ -8,7 +8,7 @@ from fastapi import HTTPException, UploadFile
 import hashlib
 from app.repositories.project import ProjectRepository
 from app.repositories.document import DocumentRepository
-from app.services.knowledge_base import knowledge_base_service
+from app.services.knowledge_base import KnowledgeBaseService
 from app.types.responses import *
 from app.utils.cuid_str import cuid_str
 from app.utils.pockity import upload_file_to_pockity
@@ -199,8 +199,26 @@ class ProjectService:
             # Process PDF files
             processed_documents = []
             if pdf_files:
+                # Get KB node configuration for embedding generation
+                kb_api_key = None
+                embedding_model = None
+                if kb_node_config:
+                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    kb_api_key = kb_node_config_dict.get("openai_api_key")
+                    embedding_model = kb_node_config_dict.get("embedding_model_name")
+                    
+                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model)
                 for pdf_file in pdf_files:
                     try:
+                        # Create KnowledgeBase service instance with user credentials
+                        if not kb_api_key or not embedding_model:
+                            processed_documents.append({
+                                "title": pdf_file.filename,
+                                "status": "configuration_missing",
+                                "error": "Knowledge Base not configured with API key and embedding model",
+                            })
+                            continue
+                        
                         file_upload_result = upload_file_to_pockity(pdf_file.file, filename=pdf_file.filename)
                         if not file_upload_result or file_upload_result.get("error"):
                             processed_documents.append({
@@ -218,15 +236,14 @@ class ProjectService:
                         content = await pdf_file.read()
                         content_hash = hashlib.md5(content).hexdigest()
                         document_id = cuid_str()
-                        processing_result = (
-                            await knowledge_base_service.process_document(
+                        processing_result = await kb_service_instance.process_document(
                                 content=content,
                                 filename=pdf_file.filename,
                                 document_id=document_id,
                                 chunk_size=1000,
                                 chunk_overlap=200,
                             )
-                        )
+                        
                         document_data = {
                             "chroma_document_id": document_id,
                             "title": pdf_file.filename,
@@ -350,7 +367,9 @@ class ProjectService:
                 for doc_id in delete_document_ids:
                     document = await DocumentRepository.get_by_id(db, doc_id)
                     if document and document.project_id == project_id:
-                        chromadb_deleted = knowledge_base_service.delete_document(doc_id)
+                        # Create a minimal service instance for deletion (doesn't need real API keys)
+                        kb_service_instance = KnowledgeBaseService(api_key="dummy", model="dummy")
+                        chromadb_deleted = kb_service_instance.delete_document(doc_id)
                         postgres_deleted = await DocumentRepository.delete(db, doc_id)
                         changes["deleted_files"].append({
                             "id": doc_id,
@@ -363,8 +382,32 @@ class ProjectService:
 
             # Add new PDF files
             if pdf_files:
+                # Get KB node configuration for embedding generation
+                kb_api_key = None
+                embedding_model = None
+                if kb_node_config:
+                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    kb_api_key = kb_node_config_dict.get("openai_api_key")
+                    embedding_model = kb_node_config_dict.get("embedding_model_name")
+                else:
+                    # Try to get existing KB node config from project
+                    updated_project = await ProjectRepository.get_by_id(db, project_id)
+                    if updated_project and updated_project.knowledge_base_node:
+                        kb_api_key = updated_project.knowledge_base_node.openai_api_key
+                        embedding_model = updated_project.knowledge_base_node.embedding_model_name
+                        
+                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model)
                 for pdf_file in pdf_files:
                     try:
+                        # Create KnowledgeBase service instance with user credentials
+                        if not kb_api_key or not embedding_model:
+                            changes["new_files"].append({
+                                "filename": pdf_file.filename,
+                                "status": "configuration_missing",
+                                "error": "Knowledge Base not configured with API key and embedding model",
+                            })
+                            continue
+                        
                         file_upload_result = upload_file_to_pockity(pdf_file.file, filename=pdf_file.filename)
                         if not file_upload_result or file_upload_result.get("error"):
                             changes["new_files"].append({
@@ -386,15 +429,14 @@ class ProjectService:
                             })
                             continue
                         document_id = cuid_str()
-                        processing_result = (
-                            await knowledge_base_service.process_document(
+                        processing_result = await kb_service_instance.process_document(
                                 content=content,
                                 filename=pdf_file.filename,
                                 document_id=document_id,
                                 chunk_size=1000,
                                 chunk_overlap=200,
                             )
-                        )
+                        
                         document_data = {
                             "chroma_document_id": document_id,
                             "title": pdf_file.filename,
@@ -565,7 +607,9 @@ class ProjectService:
             deleted_documents = []
 
             for doc in documents:
-                chromadb_deleted = knowledge_base_service.delete_document(doc.id)
+                # Create a minimal service instance for deletion (doesn't need real API keys)
+                kb_service_instance = KnowledgeBaseService(api_key="dummy", model="dummy")
+                chromadb_deleted = kb_service_instance.delete_document(doc.id)
                 deleted_documents.append(
                     {
                         "document_id": doc.id,
@@ -593,8 +637,56 @@ class ProjectService:
             )
     
     @staticmethod
+    async def get_project_workflow_config(
+        db: AsyncSession, 
+        project_id: str, 
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get project configuration needed for workflow execution"""
+        try:
+            # Get project details
+            project = await ProjectRepository.get_by_id(db, project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+            
+            # Check ownership if user_id is provided
+            if user_id and project.owner_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to access this project"
+                )
+            
+            # Get ChromaDB chunk IDs for the project
+            chromadb_chunk_ids = await DocumentRepository.get_project_chromadb_chunk_ids(
+                db, project_id
+            )
+            
+            return {
+                "project_id": project_id,
+                "workflow_definition": project.workflow.definition if project.workflow else None,
+                "chromadb_chunk_ids": chromadb_chunk_ids,
+                "llm_node": {
+                    "openai_api_key": project.llm_node.openai_api_key if project.llm_node else None,
+                    "llm_model_name": project.llm_node.llm_model_name if project.llm_node else None,
+                } if project.llm_node else {},
+                "web_search_node": {
+                    "serpapi_api_key": project.web_search_node.serpapi_api_key if project.web_search_node else None,
+                } if project.web_search_node else {},
+                "knowledge_base_node": {
+                    "openai_api_key": project.knowledge_base_node.openai_api_key if project.knowledge_base_node else None,
+                    "embedding_model_name": project.knowledge_base_node.embedding_model_name if project.knowledge_base_node else None,
+                } if project.knowledge_base_node else {},
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error retrieving project workflow config: {str(e)}"
+            )
+    
+    @staticmethod
     def _parse_workflow(workflow: str) -> Dict[str, bool]:
-        allowed_workflows = {"kb_llm", "kb_llm_web", "web", "llm_web", "llm", "web_llm"}
+        allowed_workflows = {"kb_llm", "kb_web_llm", "web", "llm", "web_llm"}
         if workflow not in allowed_workflows:
             raise HTTPException(status_code=400, detail=f"Invalid workflow definition. Allowed values are: {', '.join(allowed_workflows)}")
         parts = workflow.split("_")

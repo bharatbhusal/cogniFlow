@@ -13,34 +13,28 @@ from app.types.responses import (
 settings = get_settings()
 
 
-class OpenAIService:
-    def __init__(self):
-        # Default client for backward compatibility (fallback to env settings)
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.embedding_model = "text-embedding-ada-002"
-        self.llm_model = "gpt-3.5-turbo"
-
-    def _get_client(self, api_key: Optional[str] = None) -> AsyncOpenAI:
-        """Get OpenAI client with specified API key or default"""
-        if api_key:
-            return AsyncOpenAI(api_key=api_key)
-        return self.client
-
+class LLMService:
+    def __init__(self, api_key: str, model: str):
+        """Initialize LLM service with required API key and model"""
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
+        if not model:
+            raise ValueError("LLM model is required")
+            
+        self.api_key = api_key
+        self.model = model
+        self.client = AsyncOpenAI(api_key=api_key)
+        
     async def generate_chat_completion(
         self, 
         messages: List[Dict[str, str]], 
         temperature: float = 0.7, 
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        """Generate chat completion using OpenAI API with optional custom API key"""
+        """Generate chat completion using OpenAI API"""
         try:
-            client = self._get_client(api_key)
-            used_model = model or self.llm_model
-            
-            response = await client.chat.completions.create(
-                model=used_model,
+            response = await self.client.chat.completions.create(
+                model=self.model,
                 messages=messages,
                 temperature=temperature,
                 **kwargs,
@@ -65,66 +59,14 @@ class OpenAIService:
             else:
                 raise OpenAIError(message="OpenAI API error", details=str(e))
 
-    async def generate_embeddings(
-        self,
-        texts: List[str],
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-    ) -> List[List[float]]:
-        """Generate embeddings for a list of texts with optional custom API key"""
-        try:
-            # Clean and prepare texts
-            cleaned_texts = [
-                str(text).replace("\n", " ").strip()
-                for text in texts
-                if text and str(text).strip()
-            ]
-
-            if not cleaned_texts:
-                raise EmbeddingError(
-                    message="No valid texts provided for embedding",
-                    details="All provided texts were empty or invalid",
-                )
-
-            client = self._get_client(api_key)
-            used_model = model or self.embedding_model
-            
-            response = await client.embeddings.create(
-                model=used_model, input=cleaned_texts
-            )
-
-            return [embedding.embedding for embedding in response.data]
-
-        except Exception as e:
-            if "quota" in str(e).lower():
-                raise AIQuotaExceededError(
-                    message="OpenAI embedding quota exceeded", details=str(e)
-                )
-            else:
-                raise EmbeddingError(
-                    message="Embedding generation failed", details=str(e)
-                )
-
-    async def generate_single_embedding(
-        self,
-        text: str,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-    ) -> List[float]:
-        """Generate embedding for a single text with optional custom API key"""
-        embeddings = await self.generate_embeddings([text], api_key=api_key, model=model)
-        return embeddings[0]
-
     async def run_rag_pipeline(
         self,
         user_query: str,
         retrieved_context: List[str],
         conversation_history: Optional[List[Dict[str, str]]] = None,
         context_limit: int = 3000,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Execute the RAG pipeline with user query, retrieved context, and conversation history using custom API key"""
+        """Execute the RAG pipeline with user query, retrieved context, and conversation history"""
         try:
             # Build the augmented prompt
             context_text = self._build_context_text(retrieved_context, context_limit)
@@ -142,9 +84,7 @@ class OpenAIService:
 
             response = await self.generate_chat_completion(
                 messages, 
-                temperature=0.3,
-                api_key=api_key,
-                model=model
+                temperature=0.3
             )
 
             return {
@@ -213,10 +153,8 @@ ANSWER (using only the context and conversation history above):"""
         user_query: str,
         web_results: List[str],
         knowledge_base_context: Optional[List[str]] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Answer query using both web search results and knowledge base context with custom API key"""
+        """Answer query using both web search results and knowledge base context"""
         try:
             # Combine contexts
             all_context = []
@@ -241,9 +179,7 @@ ANSWER (using only the context and conversation history above):"""
                 ]
 
                 response = await self.generate_chat_completion(
-                    messages, 
-                    api_key=api_key, 
-                    model=model
+                    messages
                 )
 
                 return {
@@ -257,16 +193,10 @@ ANSWER (using only the context and conversation history above):"""
             # Use RAG pipeline with combined context
             return await self.run_rag_pipeline(
                 user_query, 
-                all_context, 
-                api_key=api_key, 
-                model=model
+                all_context
             )
 
         except Exception as e:
             raise RAGPipelineError(
                 message="Web search enhanced RAG failed", details=str(e)
             )
-
-
-# Singleton instance
-openai_service = OpenAIService()

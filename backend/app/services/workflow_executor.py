@@ -1,6 +1,5 @@
 from typing import Dict, Any, List, Optional
-from app.services.openai_service import openai_service
-from app.services.knowledge_base import knowledge_base_service
+from app.services.web_search_service import WebSearchService
 from app.types.responses import (
     WorkflowExecutionError,
     WorkflowParsingError,
@@ -11,7 +10,7 @@ from app.types.responses import (
 
 class WorkflowExecutor:
     """
-    Orchestrates the execution of RAG workflows defined by React Flow diagrams
+    Orchestrates the execution of RAG workflows defined by React Flow diagrams or simple string workflows
     """
 
     def __init__(self):
@@ -26,126 +25,26 @@ class WorkflowExecutor:
     async def execute_workflow(
         self,
         user_query: str,
-        workflow_definition: Dict[str, Any],
+        workflow_definition: str,
+        project_config: Dict[str, Any],
+        conversation_history: Optional[List[Dict[str, str]]] = None,
         session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Execute a complete workflow from React Flow definition"""
+        """Execute a simple workflow from string definition (e.g., 'kb_llm', 'web_llm_kb', etc.)"""
         try:
-            # Parse and validate workflow
-            parsed_workflow = self._parse_workflow_definition(workflow_definition)
-
-            # Execute the RAG pipeline based on workflow configuration
-            result = await self._execute_rag_pipeline(
-                user_query=user_query,
-                workflow_config=parsed_workflow,
-                session_id=session_id,
-            )
-
-            return result
-
-        except Exception as e:
-            if isinstance(
-                e, (WorkflowParsingError, InvalidWorkflowError, RAGPipelineError)
-            ):
-                raise
-            raise WorkflowExecutionError(
-                message="Workflow execution failed", details=str(e)
-            )
-
-    def _parse_workflow_definition(
-        self, workflow_def: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Parse React Flow workflow definition into execution config"""
-        try:
-            nodes = workflow_def.get("nodes", [])
-            edges = workflow_def.get("edges", [])
-
-            if not nodes:
+            # Parse workflow string to determine execution order
+            workflow_parts = workflow_definition.split("_")
+            
+            # Validate workflow parts
+            valid_parts = {"kb", "llm", "web"}
+            if not all(part in valid_parts for part in workflow_parts):
                 raise InvalidWorkflowError(
-                    message="Workflow must contain at least one node",
-                    details="Empty workflow definition provided",
+                    message=f"Invalid workflow definition: {workflow_definition}",
+                    details=f"Valid parts are: {valid_parts}"
                 )
 
-            # Extract node configurations
-            config = {"nodes": {}, "execution_order": [], "connections": {}}
-
-            for node in nodes:
-                node_type = node.get("type")
-                node_id = node.get("id")
-                node_data = node.get("data", {})
-
-                if node_type not in self.supported_components:
-                    raise InvalidWorkflowError(
-                        message=f"Unsupported component type: {node_type}",
-                        details=f"Supported types: {', '.join(self.supported_components)}",
-                    )
-
-                config["nodes"][node_id] = {
-                    "type": node_type,
-                    "config": node_data,
-                    "position": node.get("position", {}),
-                }
-
-            # Build execution order from edges
-            config["connections"] = self._build_execution_graph(edges)
-            config["execution_order"] = self._determine_execution_order(nodes, edges)
-
-            return config
-
-        except Exception as e:
-            if isinstance(e, InvalidWorkflowError):
-                raise
-            raise WorkflowParsingError(
-                message="Failed to parse workflow definition", details=str(e)
-            )
-
-    def _build_execution_graph(self, edges: List[Dict]) -> Dict[str, List[str]]:
-        """Build execution graph from React Flow edges"""
-        connections = {}
-
-        for edge in edges:
-            source = edge.get("source")
-            target = edge.get("target")
-
-            if source and target:
-                if source not in connections:
-                    connections[source] = []
-                connections[source].append(target)
-
-        return connections
-
-    def _determine_execution_order(
-        self, nodes: List[Dict], edges: List[Dict]
-    ) -> List[str]:
-        """Determine execution order using topological sort"""
-        # For the basic RAG workflow: UserQuery -> KnowledgeBase -> LLMEngine -> Output
-        # We'll implement a simple ordering based on component types
-
-        type_priority = {
-            "userQuery": 1,
-            "knowledgeBase": 2,
-            "webSearch": 2,  # Same priority as knowledge base (parallel)
-            "llmEngine": 3,
-            "output": 4,
-        }
-
-        # Sort nodes by type priority
-        sorted_nodes = sorted(
-            nodes, key=lambda x: type_priority.get(x.get("type"), 999)
-        )
-
-        return [node["id"] for node in sorted_nodes]
-
-    async def _execute_rag_pipeline(
-        self,
-        user_query: str,
-        workflow_config: Dict[str, Any],
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Execute the RAG pipeline based on workflow configuration"""
-        try:
-            nodes = workflow_config["nodes"]
-            execution_order = workflow_config["execution_order"]
+            # Create configured service instances based on project config
+            configured_services = self._create_configured_services(project_config)
 
             # Initialize execution context
             context = {
@@ -155,33 +54,17 @@ class WorkflowExecutor:
                 "final_response": "",
                 "sources": [],
                 "execution_log": [],
+                "conversation_history": conversation_history or [],
             }
 
-            # Execute nodes in order
-            for node_id in execution_order:
-                node = nodes[node_id]
-                node_type = node["type"]
-                node_config = node["config"]
-
-                context["execution_log"].append(f"Executing {node_type} ({node_id})")
-
-                if node_type == "userQuery":
-                    # Already have user query
-                    continue
-
-                elif node_type == "knowledgeBase":
-                    context = await self._execute_knowledge_base_node(
-                        context, node_config
-                    )
-
-                elif node_type == "webSearch":
-                    context = await self._execute_web_search_node(context, node_config)
-
-                elif node_type == "llmEngine":
-                    context = await self._execute_llm_engine_node(context, node_config)
-
-                elif node_type == "output":
-                    context = await self._execute_output_node(context, node_config)
+            # Execute workflow steps in order
+            for step in workflow_parts:
+                if step == "kb":
+                    context = await self._execute_kb_step(context, configured_services)
+                elif step == "llm":
+                    context = await self._execute_llm_step(context, configured_services)
+                elif step == "web":
+                    context = await self._execute_web_step(context, configured_services)
 
             return {
                 "response_text": context["final_response"],
@@ -191,119 +74,197 @@ class WorkflowExecutor:
             }
 
         except Exception as e:
-            raise RAGPipelineError(
-                message="RAG pipeline execution failed", details=str(e)
+            if isinstance(e, (InvalidWorkflowError, RAGPipelineError)):
+                raise
+            raise WorkflowExecutionError(
+                message="Simple workflow execution failed", details=str(e)
             )
 
-    async def _execute_knowledge_base_node(
-        self, context: Dict[str, Any], config: Dict[str, Any]
+    async def _create_configured_services(self, project_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Create pre-configured service instances with API keys and models from project config"""
+        from app.services.llm_service import LLMService
+        from app.services.knowledge_base import KnowledgeBaseService
+        from app.services.web_search_service import WebSearchService
+        
+        services = {}
+        
+        # Create configured LLM service instance
+        llm_config = project_config.get("llm_node", {})
+        if llm_config:
+            api_key = llm_config.get("openai_api_key")
+            model = llm_config.get("llm_model_name")
+            if api_key and model:
+                services["llm_service"] = LLMService(api_key=api_key, model=model)
+        
+        # Create configured Knowledge Base service instance
+        kb_config = project_config.get("knowledge_base_node", {})
+        if kb_config:
+            api_key = kb_config.get("openai_api_key")
+            model = kb_config.get("embedding_model_name")
+            if api_key and model:
+                services["knowledge_base_service"] = KnowledgeBaseService(api_key=api_key, model=model)
+        
+        # Create configured Web Search service instance
+        web_config = project_config.get("web_search_node", {})
+        if web_config:
+            serpapi_api_key = web_config.get("serpapi_api_key")
+            if serpapi_api_key:
+                services["web_search_service"] = WebSearchService(serpapi_api_key=serpapi_api_key)
+        
+        # Pass through additional project data
+        services["chromadb_chunk_ids"] = project_config.get("chromadb_chunk_ids", [])
+        services["project_id"] = project_config.get("project_id")
+        
+        return services
+
+    async def _execute_kb_step(
+        self, context: Dict[str, Any], configured_services: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Execute knowledge base retrieval"""
+        """Execute knowledge base retrieval step with configured service"""
         try:
-            # Get configuration
-            n_results = config.get("n_results", 5)
-            document_ids = config.get("document_ids")
-
-            # Retrieve relevant context
-            relevant_chunks = await knowledge_base_service.retrieve_relevant_context(
-                query=context["user_query"],
-                n_results=n_results,
-                document_ids=document_ids,
-            )
-
-            # Extract text and sources
-            context["retrieved_context"] = [chunk["text"] for chunk in relevant_chunks]
-            context["sources"].extend(
-                [
+            context["execution_log"].append("Executing Knowledge Base retrieval")
+            
+            # Get configured KB service instance
+            kb_service_instance = configured_services.get("knowledge_base_service")
+            if not kb_service_instance:
+                raise ValueError("Knowledge Base service not configured for this project")
+            
+            # Get document chunk IDs for the project
+            chromadb_chunk_ids = configured_services.get("chromadb_chunk_ids", [])
+            
+            if chromadb_chunk_ids:
+                # Retrieve relevant context using configured service
+                relevant_chunks = await kb_service_instance.retrieve_relevant_context_by_ids(
+                    query=context["user_query"],
+                    chromadb_chunk_ids=chromadb_chunk_ids,
+                    n_results=5,
+                )
+                
+                # Extract text and sources
+                context["retrieved_context"] = [chunk["text"] for chunk in relevant_chunks]
+                context["sources"].extend([
                     {
                         "type": "knowledge_base",
-                        "source": chunk["source"],
-                        "similarity": chunk["similarity"],
+                        "source": chunk.get("source", "Unknown"),
+                        "similarity": chunk.get("similarity", 0.0),
                     }
                     for chunk in relevant_chunks
-                ]
-            )
-
-            context["execution_log"].append(
-                f"Retrieved {len(relevant_chunks)} relevant chunks"
-            )
-
-            return context
-
-        except Exception as e:
-            raise RAGPipelineError(
-                message="Knowledge base node execution failed", details=str(e)
-            )
-
-    async def _execute_web_search_node(
-        self, context: Dict[str, Any], config: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Execute web search (placeholder - would integrate with SerpAPI)"""
-        try:
-            # This would integrate with SerpAPI or similar service
-            # For now, we'll just add a placeholder
-
-            search_enabled = config.get("enabled", False)
-
-            if search_enabled:
-                context["execution_log"].append(
-                    "Web search node executed (placeholder)"
-                )
-                # In a real implementation, this would call SerpAPI
-                # web_results = await serpapi_service.search(context["user_query"])
-                # context["web_results"] = web_results
+                ])
+                
+                context["execution_log"].append(f"Retrieved {len(relevant_chunks)} relevant chunks from knowledge base")
+            else:
+                context["execution_log"].append("No documents found in knowledge base")
 
             return context
 
         except Exception as e:
             raise RAGPipelineError(
-                message="Web search node execution failed", details=str(e)
+                message="Knowledge base step execution failed", details=str(e)
             )
 
-    async def _execute_llm_engine_node(
-        self, context: Dict[str, Any], config: Dict[str, Any]
+    async def _execute_web_step(
+        self, context: Dict[str, Any], configured_services: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Execute LLM generation"""
+        """Execute web search step with configured service"""
         try:
-            # Get configuration
-            model = config.get("model", "gpt-4o-mini")
-            temperature = config.get("temperature", 0.7)
-            use_web_search = config.get("use_web_search", False)
+            context["execution_log"].append("Executing Web search")
+            
+            # Get configured Web Search service instance
+            web_search_service_instance = configured_services.get("web_search_service")
+            if not web_search_service_instance:
+                context["execution_log"].append("Web search not configured - skipping")
+                return context
 
-            # Prepare context for RAG
+            # Perform web search
+            search_results = web_search_service_instance.search(
+                query=context["user_query"],
+                engine="google"
+            )
+            
+            # Extract relevant information from search results
+            web_context = []
+            for result in search_results[:3]:  # Limit to top 3 results
+                title = result.get("title", "")
+                snippet = result.get("snippet", "")
+                link = result.get("link", "")
+                
+                if title and snippet:
+                    web_context.append(f"Title: {title}\nContent: {snippet}\nSource: {link}")
+                    context["sources"].append({
+                        "type": "web_search",
+                        "source": link,
+                        "title": title,
+                    })
+            
+            context["web_results"] = web_context
+            context["execution_log"].append(f"Retrieved {len(web_context)} web search results")
+
+            return context
+
+        except Exception as e:
+            raise RAGPipelineError(
+                message="Web search step execution failed", details=str(e)
+            )
+
+    async def _execute_llm_step(
+        self, context: Dict[str, Any], configured_services: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute LLM generation step with configured service"""
+        try:
+            context["execution_log"].append("Executing LLM generation")
+            
+            # Get configured LLM service instance
+            llm_service_instance = configured_services.get("llm_service")
+            if not llm_service_instance:
+                raise ValueError("LLM service not configured for this project")
+            
+            # Prepare all available context
             all_context = context["retrieved_context"].copy()
-
-            if use_web_search and context["web_results"]:
+            if context["web_results"]:
                 all_context.extend(context["web_results"])
 
-            # Execute RAG pipeline
+            # Generate response using configured LLM service
             if all_context:
-                result = await openai_service.run_rag_pipeline(
-                    user_query=context["user_query"], retrieved_context=all_context
+                # Use RAG pipeline with context
+                result = await llm_service_instance.run_rag_pipeline(
+                    user_query=context["user_query"],
+                    retrieved_context=all_context,
+                    conversation_history=context["conversation_history"],
                 )
                 context["final_response"] = result["response_text"]
-                context["execution_log"].append("LLM generated response using RAG")
+                context["execution_log"].append(f"Generated RAG response using {len(all_context)} context sources")
             else:
-                # Fallback to direct LLM response
-                messages = [
-                    {"role": "system", "content": "You are a helpful AI assistant."},
-                    {"role": "user", "content": context["user_query"]},
-                ]
-                result = await openai_service.generate_chat_completion(
-                    messages, model=model, temperature=temperature
+                # Direct LLM query without context
+                messages = []
+                
+                # Add conversation history if available
+                if context["conversation_history"]:
+                    for msg in context["conversation_history"]:
+                        messages.append({
+                            "role": msg["role"],
+                            "content": msg["content"]
+                        })
+                
+                # Add current query
+                messages.append({
+                    "role": "user", 
+                    "content": context["user_query"]
+                })
+                
+                result = await llm_service_instance.generate_chat_completion(
+                    messages
                 )
                 context["final_response"] = result["content"]
-                context["execution_log"].append(
-                    "LLM generated direct response (no context)"
-                )
+                context["execution_log"].append("Generated direct LLM response (no context available)")
 
             return context
 
         except Exception as e:
             raise RAGPipelineError(
-                message="LLM engine node execution failed", details=str(e)
+                message="LLM step execution failed", details=str(e)
             )
 
+   
     async def _execute_output_node(
         self, context: Dict[str, Any], config: Dict[str, Any]
     ) -> Dict[str, Any]:
