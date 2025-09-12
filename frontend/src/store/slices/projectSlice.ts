@@ -243,7 +243,7 @@ const projectSlice = createSlice({
                 : state.currentProject.documents_count,
               workflow:
                 updates.workflow.status !== "unchanged"
-                  ? updates.workflow.to
+                  ? updates.workflow.new_workflow
                   : state.currentProject.workflow,
               llm_node:
                 updates.llm_node.status !== "unchanged"

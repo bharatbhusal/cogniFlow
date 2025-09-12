@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { UpdateProjectModal } from "../components/modals/UpdateProjectModal";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProjects } from "../hooks/useProjects";
 import { Button } from "../components/ui/Button";
@@ -7,7 +6,6 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Textarea } from "../components/ui/Textarea";
 import { Message } from "../types";
 import { toast } from "react-toastify";
-import { DocumentsModal } from "../components/modals/DocumentsModal";
 import { FaChevronCircleLeft } from "react-icons/fa";
 
 export const ChatPage: React.FC = () => {
@@ -274,24 +272,6 @@ export const ChatPage: React.FC = () => {
           </div>
         </main>
       </div>
-      {/* Update Project Modal */}
-      {showUpdateModal && (
-        <UpdateProjectModal
-          isOpen={showUpdateModal}
-          onClose={() => setShowUpdateModal(false)}
-          project={project}
-          onUpdate={handleUpdateProject}
-        />
-      )}
-
-      {/* View Documents Modal */}
-      {showDocumentsModal && project && (
-        <DocumentsModal
-          isOpen={showDocumentsModal}
-          onClose={() => setShowDocumentsModal(false)}
-          project={project}
-        />
-      )}
     </div>
   );
 };

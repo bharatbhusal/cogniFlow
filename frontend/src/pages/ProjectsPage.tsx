@@ -9,8 +9,6 @@ import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { CreateProjectModal } from "../components/modals/CreateProjectModal";
-import { UpdateProjectModal } from "../components/modals/UpdateProjectModal";
-import { DocumentsModal } from "../components/modals/DocumentsModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useProjects } from "../hooks/useProjects";
@@ -53,20 +51,6 @@ export const ProjectsPage: React.FC = () => {
     }
   }, [error]);
 
-  const handleCreateProject = async (data: {
-    name: string;
-    description: string;
-    pdf_files: File[];
-  }) => {
-    try {
-      await createProject(data);
-      setShowCreateModal(false);
-      toast.success("Project created successfully!");
-    } catch (error) {
-      toast.error("Failed to create project!");
-    }
-  };
-
   const handleDeleteProject = async (projectId: string) => {
     try {
       await deleteProject(projectId);
@@ -74,15 +58,6 @@ export const ProjectsPage: React.FC = () => {
     } catch (error) {
       toast.error("Failed to delete project!");
     }
-  };
-
-  const handleProjectClick = (projectId: string) => {
-    navigate(`/chat/${projectId}`);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
   };
 
   const handleUpdateProject = async (data: {
@@ -130,8 +105,6 @@ export const ProjectsPage: React.FC = () => {
             <CreateProjectModal
               isOpen={showCreateModal}
               onClose={() => setShowCreateModal(false)}
-              onCreate={handleCreateProject}
-              loading={loading}
             />
           )}
 
@@ -196,7 +169,7 @@ export const ProjectsPage: React.FC = () => {
                       size="sm"
                       className="flex items-center gap-2 px-3 py-1 rounded-lg"
                       onClick={() =>
-                        navigate(`/project/${project.id}?editable=false`)
+                        navigate(`/projects/${project.id}?editable=false`)
                       }
                       title="View Documents"
                     >
@@ -242,24 +215,6 @@ export const ProjectsPage: React.FC = () => {
           )}
         </div>
       </main>
-      {/* Update Project Modal */}
-      {showUpdateModal && selectedProject && (
-        <UpdateProjectModal
-          isOpen={showUpdateModal}
-          onClose={() => setShowUpdateModal(false)}
-          project={selectedProject}
-          onUpdate={handleUpdateProject}
-        />
-      )}
-
-      {/* View Documents Modal */}
-      {showDocumentsModal && selectedProject && (
-        <DocumentsModal
-          isOpen={showDocumentsModal}
-          onClose={() => setShowDocumentsModal(false)}
-          project={selectedProject}
-        />
-      )}
     </motion.div>
   );
 };

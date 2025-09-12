@@ -164,32 +164,33 @@ class ProjectService:
             project = await ProjectRepository.create(db, project_data)
 
             # Workflow and node config logic
-            workflow_flags = ProjectService._parse_workflow(workflow)
-            if workflow_flags["hasKb"]:
-                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
-                from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
-                    "openai_api_key": kb_node_config_dict["openai_api_key"],
-                    "embedding_model_name": kb_node_config_dict["embedding_model_name"],
-                })
-            if workflow_flags["hasLlm"]:
-                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
-                from app.repositories.llm_node import LlmNodeRepository
-                await LlmNodeRepository.create(db=db, project_id=project.id, data={
-                    "openai_api_key": llm_node_config_dict["openai_api_key"],
-                    "llm_model_name": llm_node_config_dict["llm_model_name"],
-                })
-            if workflow_flags["hasWeb"]:
-                web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
-                from app.repositories.web_search_node import WebSearchNodeRepository
-                await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
-                    "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
-                })
-            if workflow and isinstance(workflow, str) and workflow.strip():
-                from app.repositories.workflow import WorkflowRepository
-                await WorkflowRepository.create(db=db, project_id=project.id, data={
-                    "definition": workflow
-                })
+            if workflow:
+                workflow_flags = ProjectService._parse_workflow(workflow)
+                if workflow_flags["hasKb"]:
+                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
+                    await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
+                        "openai_api_key": kb_node_config_dict["openai_api_key"],
+                        "embedding_model_name": kb_node_config_dict["embedding_model_name"],
+                    })
+                if workflow_flags["hasLlm"]:
+                    llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                    from app.repositories.llm_node import LlmNodeRepository
+                    await LlmNodeRepository.create(db=db, project_id=project.id, data={
+                        "openai_api_key": llm_node_config_dict["openai_api_key"],
+                        "llm_model_name": llm_node_config_dict["llm_model_name"],
+                    })
+                if workflow_flags["hasWeb"]:
+                    web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
+                    from app.repositories.web_search_node import WebSearchNodeRepository
+                    await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
+                        "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
+                    })
+                if workflow and isinstance(workflow, str) and workflow.strip():
+                    from app.repositories.workflow import WorkflowRepository
+                    await WorkflowRepository.create(db=db, project_id=project.id, data={
+                        "definition": workflow
+                    })
 
             # Process PDF files
             processed_documents = []
@@ -424,13 +425,17 @@ class ProjectService:
             if workflow is not None:
                 workflow_flags = ProjectService._parse_workflow(workflow)  # will raise if invalid
                 old_workflow = project.workflow.definition if project and project.workflow else None
-                if (project and project.workflow and project.workflow.definition != workflow):
-                    await WorkflowRepository.upsert(db=db, project_id=project_id, data={
+                if old_workflow:
+                    if (old_workflow != workflow):
+                        await WorkflowRepository.upsert(db=db, project_id=project_id, data={
+                            "definition": workflow
+                        })
+                        changes["workflow"] = { "status": "updated", "old_workflow": old_workflow, "new_workflow": workflow }
+                else:
+                    await WorkflowRepository.create(db=db, project_id=project_id, data={
                         "definition": workflow
                     })
-                    changes["workflow"] = { "status": "updated", "from": old_workflow, "to": workflow }
-                else:
-                    changes["workflow"] = { "status": "unchanged" }
+                    changes["workflow"] = { "status": "created", "new_workflow": workflow }
 
             # Get current project nodes
             updated_project = await ProjectRepository.get_by_id(db, project_id)

@@ -3,11 +3,7 @@ import { useParams, useLocation } from "react-router-dom";
 import { ReactFlowProvider } from "reactflow";
 import "reactflow/dist/style.css";
 
-import {
-  CreateProjectView,
-  ViewProjectView,
-  EditProjectView,
-} from "../components/project";
+import { ViewProjectView, EditProjectView } from "../components/project";
 
 const ProjectPageInner: React.FC = () => {
   const location = useLocation();
@@ -15,9 +11,9 @@ const ProjectPageInner: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const editable = searchParams.get("editable") === "true";
 
-  // Case 1: No projectId - Create new project
+  // Case 1: No projectId - Do nothing.
   if (!projectId) {
-    return <CreateProjectView />;
+    return null;
   }
 
   // Case 2: ProjectId exists and editable is true - Edit project

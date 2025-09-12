@@ -172,24 +172,36 @@ class ApiClient {
         formData.append("workflow", projectData.project_config.workflow);
 
         if (projectData.project_config.llm_node) {
-          formData.append(
-            "llm_node_config",
-            JSON.stringify(projectData.project_config.llm_node)
-          );
+          if (
+            projectData.project_config.llm_node.openai_api_key &&
+            projectData.project_config.llm_node.llm_model_name
+          ) {
+            formData.append(
+              "llm_node_config",
+              JSON.stringify(projectData.project_config.llm_node)
+            );
+          }
         }
 
         if (projectData.project_config.knowledge_base_node) {
-          formData.append(
-            "kb_node_config",
-            JSON.stringify(projectData.project_config.knowledge_base_node)
-          );
+          if (
+            projectData.project_config.knowledge_base_node.openai_api_key &&
+            projectData.project_config.knowledge_base_node.embedding_model_name
+          ) {
+            formData.append(
+              "kb_node_config",
+              JSON.stringify(projectData.project_config.knowledge_base_node)
+            );
+          }
         }
 
         if (projectData.project_config.web_search_node) {
-          formData.append(
-            "web_search_node_config",
-            JSON.stringify(projectData.project_config.web_search_node)
-          );
+          if (projectData.project_config.web_search_node.serpapi_api_key) {
+            formData.append(
+              "web_search_node_config",
+              JSON.stringify(projectData.project_config.web_search_node)
+            );
+          }
         }
       }
     }
