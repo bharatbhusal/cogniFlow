@@ -57,81 +57,64 @@ const ViewProjectView: React.FC<ViewProjectViewProps> = ({ projectId }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
-  const { screenToFlowPosition } = useReactFlow();
+  const createWorkflowNodes = useCallback((projectConfig: ProjectConfig) => {
+    if (!projectConfig.workflow) return { nodes: [], edges: [] };
 
-  // Read-only handlers (no-op functions)
-  const readOnlyDeleteHandler = useCallback(() => {
-    // No-op - can't delete in view mode
-  }, []);
+    const workflowSteps = projectConfig.workflow.split("_");
 
-  const readOnlyDataChangeHandler = useCallback(() => {
-    // No-op - can't change data in view mode
-  }, []);
+    const nodeTypeMapping: { [key: string]: string } = {
+      kb: "knowledgeBaseNode",
+      llm: "llmNode",
+      web: "webSearchNode",
+    };
 
-  const createWorkflowNodes = useCallback(
-    (projectConfig: ProjectConfig) => {
-      if (!projectConfig.workflow) return { nodes: [], edges: [] };
+    const workflowNodeTypes = workflowSteps
+      .map((step: string) => nodeTypeMapping[step])
+      .filter(Boolean);
 
-      const workflowSteps = projectConfig.workflow.split("_");
+    const allNodeTypes = ["userQueryNode", ...workflowNodeTypes, "outputNode"];
 
-      const nodeTypeMapping: { [key: string]: string } = {
-        kb: "knowledgeBaseNode",
-        llm: "llmNode",
-        web: "webSearchNode",
-      };
+    const newNodes: Node[] = [];
+    const newEdges: Edge[] = [];
 
-      const workflowNodeTypes = workflowSteps
-        .map((step: string) => nodeTypeMapping[step])
-        .filter(Boolean);
+    const nodeDataMapping: { [key: string]: any } = {
+      knowledgeBaseNode: projectConfig.knowledge_base_node,
+      llmNode: projectConfig.llm_node,
+      webSearchNode: projectConfig.web_search_node,
+    };
 
-      const allNodeTypes = [
-        "userQueryNode",
-        ...workflowNodeTypes,
-        "outputNode",
-      ];
-
-      const newNodes: Node[] = [];
-      const newEdges: Edge[] = [];
-
-      const nodeDataMapping: { [key: string]: any } = {
-        knowledgeBaseNode: projectConfig.knowledge_base_node,
-        llmNode: projectConfig.llm_node,
-        webSearchNode: projectConfig.web_search_node,
-      };
-
-      allNodeTypes.forEach((nodeType, index) => {
-        const nodeId = `${nodeType}-${index}`;
-        newNodes.push({
-          id: nodeId,
-          type: nodeType,
-          position: { x: index * 400, y: 250 },
-          data: {
-            onDelete: readOnlyDeleteHandler,
-            onDataChange: readOnlyDataChangeHandler,
-            label: initialSidebarNodes.find((n) => n.id === nodeType)?.label,
-            readOnly: true, // Flag to indicate read-only mode
-            ...nodeDataMapping[nodeType],
-          },
-        });
-
-        if (index > 0) {
-          const sourceNodeId = `${allNodeTypes[index - 1]}-${index - 1}`;
-          const targetNodeId = nodeId;
-          newEdges.push({
-            id: `e${sourceNodeId}-${targetNodeId}`,
-            source: sourceNodeId,
-            target: targetNodeId,
-            animated: true,
-            type: "customEdge",
-            style: { strokeDasharray: "4 2", strokeWidth: 2 },
-          });
-        }
+    allNodeTypes.forEach((nodeType, index) => {
+      const nodeId = `${nodeType}-${index}`;
+      newNodes.push({
+        id: nodeId,
+        type: nodeType,
+        position: { x: index * 400, y: 250 },
+        data: {
+          onDelete: () => {}, // No-op in view mode
+          onDataChange: () => {}, // No-op in view mode
+          label: initialSidebarNodes.find((n) => n.id === nodeType)?.label,
+          readOnly: true, // Flag to indicate read-only mode
+          ...nodeDataMapping[nodeType],
+        },
       });
 
-      return { nodes: newNodes, edges: newEdges };
-    },
-    [readOnlyDeleteHandler, readOnlyDataChangeHandler]
-  );
+      if (index > 0) {
+        const sourceNodeId = `${allNodeTypes[index - 1]}-${index - 1}`;
+        const targetNodeId = nodeId;
+        newEdges.push({
+          id: `e${sourceNodeId}-${targetNodeId}`,
+          source: sourceNodeId,
+          target: targetNodeId,
+          animated: true,
+          type: "customEdge",
+          style: { strokeDasharray: "4 2", strokeWidth: 2 },
+        });
+      }
+    });
+
+    return { nodes: newNodes, edges: newEdges };
+  }, []);
+
   useEffect(() => {
     if (projectId) {
       fetchOne(projectId).then((res) => setCurrent(res.payload));
@@ -178,21 +161,6 @@ const ViewProjectView: React.FC<ViewProjectViewProps> = ({ projectId }) => {
     });
   }, []);
 
-  // Prevent edge changes in view mode
-  const onEdgesChange = useCallback(() => {
-    // No-op - can't change edges in view mode
-  }, []);
-
-  // Prevent connections in view mode
-  const onConnect = useCallback(() => {
-    // No-op - can't connect in view mode
-  }, []);
-
-  // Prevent dropping in view mode
-  const onDrop = useCallback(() => {
-    // No-op - can't drop in view mode
-  }, []);
-
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     // Don't set dropEffect in view mode
@@ -223,62 +191,61 @@ const ViewProjectView: React.FC<ViewProjectViewProps> = ({ projectId }) => {
   }
 
   // If there's a workflow, show the ReactFlow interface
-  if (currentProject.workflow && projectConfig) {
-    return (
-      <div className="h-screen w-full flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-gray-900 text-white shadow p-4 h-full overflow-y-auto flex flex-col gap-4">
-          <div className="space-y-4">
-            <div className="mx-auto">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" onClick={() => navigate(-1)}>
-                  <FaChevronCircleLeft size={24} />
-                </Button>
-                <h1 className="text-xl font-bold text-white">
-                  {currentProject.name}
-                </h1>
-              </div>
-              {currentProject.description && (
-                <p className="text-sm text-gray-400 mt-1">
-                  {currentProject.description.length > 100
-                    ? currentProject.description.slice(0, 100) + "..."
-                    : currentProject.description}
-                </p>
-              )}
+  //   if (currentProject.workflow && projectConfig) {
+  return (
+    <div className="h-screen w-full flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-gray-900 text-white shadow p-4 h-full overflow-y-auto flex flex-col gap-4">
+        <div className="space-y-4">
+          <div className="mx-auto">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => navigate(-1)}>
+                <FaChevronCircleLeft size={24} />
+              </Button>
+              <h1 className="text-xl font-bold text-white">
+                {currentProject.name}
+              </h1>
             </div>
+            {currentProject.description && (
+              <p className="text-sm text-gray-400 mt-1">
+                {currentProject.description.length > 100
+                  ? currentProject.description.slice(0, 100) + "..."
+                  : currentProject.description}
+              </p>
+            )}
+          </div>
 
-            {/* Project Info */}
-            <div>
-              <h3 className="text-sm font-medium text-white mb-2">
-                Project Info
-              </h3>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="font-medium">Documents:</span>{" "}
-                      {currentProject.documents?.length ||
-                        currentProject.documents_count ||
-                        0}
-                    </p>
-                    <p>
-                      <span className="font-medium">Messages:</span>{" "}
-                      {currentProject.messages?.length ||
-                        currentProject.messages_count ||
-                        0}
-                    </p>
-                    <p>
-                      <span className="font-medium">Created:</span>{" "}
-                      {new Date(
-                        currentProject.created_at!
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          {/* Project Info */}
+          <div>
+            <h3 className="text-sm font-medium text-white mb-2">
+              Project Info
+            </h3>
+            <Card>
+              <CardContent className="p-3">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="font-medium">Documents:</span>{" "}
+                    {currentProject.documents?.length ||
+                      currentProject.documents_count ||
+                      0}
+                  </p>
+                  <p>
+                    <span className="font-medium">Messages:</span>{" "}
+                    {currentProject.messages?.length ||
+                      currentProject.messages_count ||
+                      0}
+                  </p>
+                  <p>
+                    <span className="font-medium">Created:</span>{" "}
+                    {new Date(currentProject.created_at!).toLocaleDateString()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Workflow Config */}
+          {/* Workflow Config */}
+          {projectConfig && projectConfig.workflow && (
             <div>
               <h3 className="text-sm font-medium text-white mb-2">
                 Workflow Configuration
@@ -323,226 +290,40 @@ const ViewProjectView: React.FC<ViewProjectViewProps> = ({ projectId }) => {
                 </CardContent>
               </Card>
             </div>
+          )}
 
-            {/* Edit Button */}
-            <div>
-              <Button
-                onClick={() => navigate(`/projects/${projectId}?editable=true`)}
-                className="w-full flex items-center gap-2"
-              >
-                <FaEdit />
-                Edit Project
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-auto">
-            <div className="text-xs text-gray-400 p-2 bg-gray-800 rounded">
-              <p className="font-medium mb-1">📖 View Mode</p>
-              <p>
-                You can drag nodes around but cannot modify, add, or delete
-                them.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ReactFlow Canvas */}
-        <FlowEditor
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-        />
-      </div>
-    );
-  }
-
-  // If no workflow, show the dashboard view
-  return (
-    <div className="h-screen w-full bg-gray-50">
-      <div className="container mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(-1)}>
-              <FaChevronCircleLeft size={24} />
+          {/* Edit Button */}
+          <div>
+            <Button
+              onClick={() => navigate(`/projects/${projectId}?editable=true`)}
+              className="w-full flex items-center gap-2"
+            >
+              <FaEdit />
+              Edit Project
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {currentProject.name}
-              </h1>
-              {currentProject.description && (
-                <p className="text-gray-600 mt-1">
-                  {currentProject.description}
-                </p>
-              )}
-            </div>
           </div>
-          <Button
-            onClick={() => navigate(`/projects/${projectId}?editable=true`)}
-            className="flex items-center gap-2"
-          >
-            <FaEdit />
-            Edit Project
-          </Button>
         </div>
 
-        {/* Project Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Basic Info */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="text-lg font-semibold mb-3">Project Details</h3>
-              <div className="space-y-2 text-sm">
-                <p>
-                  <span className="font-medium">Documents:</span>{" "}
-                  {currentProject.documents?.length ||
-                    currentProject.documents_count ||
-                    0}
-                </p>
-                <p>
-                  <span className="font-medium">Messages:</span>{" "}
-                  {currentProject.messages?.length ||
-                    currentProject.messages_count ||
-                    0}
-                </p>
-                <p>
-                  <span className="font-medium">Created:</span>{" "}
-                  {new Date(currentProject.created_at!).toLocaleDateString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Workflow Configuration */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="text-lg font-semibold mb-3">Workflow</h3>
-              <div className="space-y-2 text-sm">
-                <p>
-                  <span className="font-medium">Status:</span>{" "}
-                  {projectConfig?.workflow || "Not configured"}
-                </p>
-                {projectConfig?.workflow && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500">Workflow steps:</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {projectConfig.workflow.split("_").map((step, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
-                        >
-                          {step === "kb"
-                            ? "Knowledge Base"
-                            : step === "llm"
-                            ? "LLM"
-                            : step === "web"
-                            ? "Web Search"
-                            : step}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Node Configurations */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="text-lg font-semibold mb-3">
-                Node Configurations
-              </h3>
-              <div className="space-y-2 text-sm">
-                {projectConfig?.knowledge_base_node?.embedding_model_name && (
-                  <p>
-                    <span className="font-medium">KB Model:</span>{" "}
-                    {projectConfig.knowledge_base_node.embedding_model_name}
-                  </p>
-                )}
-                {projectConfig?.llm_node?.llm_model_name && (
-                  <p>
-                    <span className="font-medium">LLM Model:</span>{" "}
-                    {projectConfig.llm_node.llm_model_name}
-                  </p>
-                )}
-                {projectConfig?.web_search_node?.serpapi_api_key && (
-                  <p>
-                    <span className="font-medium">Web Search:</span> Configured
-                  </p>
-                )}
-                {!projectConfig?.knowledge_base_node &&
-                  !projectConfig?.llm_node &&
-                  !projectConfig?.web_search_node?.serpapi_api_key && (
-                    <p className="text-gray-500 italic">No nodes configured</p>
-                  )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Documents and Messages */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Documents */}
-          {currentProject.documents && currentProject.documents.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="text-lg font-semibold mb-3">Documents</h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {currentProject.documents.slice(0, 10).map((doc: any) => (
-                    <div
-                      key={doc.id}
-                      className="p-2 bg-gray-50 rounded text-sm"
-                    >
-                      <p className="font-medium truncate">
-                        {doc.name || doc.filename}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {doc.created_at
-                          ? new Date(doc.created_at).toLocaleDateString()
-                          : "Unknown date"}
-                      </p>
-                    </div>
-                  ))}
-                  {currentProject.documents.length > 10 && (
-                    <p className="text-sm text-gray-500 text-center">
-                      ... and {currentProject.documents.length - 10} more
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Messages */}
-          {currentProject.messages && currentProject.messages.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="text-lg font-semibold mb-3">Recent Messages</h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {currentProject.messages.slice(-5).map((message: any) => (
-                    <div
-                      key={message.id}
-                      className="p-2 bg-gray-50 rounded text-sm"
-                    >
-                      <p className="font-medium text-xs text-gray-500 mb-1">
-                        {message.role} -{" "}
-                        {new Date(message.created_at).toLocaleString()}
-                      </p>
-                      <p className="truncate">{message.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className="mt-auto">
+          <div className="text-xs text-gray-400 p-2 bg-gray-800 rounded">
+            <p className="font-medium mb-1">📖 View Mode</p>
+            <p>
+              You can drag nodes around but cannot modify, add, or delete them.
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* ReactFlow Canvas */}
+      <FlowEditor
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={() => {}}
+        onConnect={() => {}}
+        onDrop={() => {}}
+        onDragOver={onDragOver}
+      />
     </div>
   );
 };

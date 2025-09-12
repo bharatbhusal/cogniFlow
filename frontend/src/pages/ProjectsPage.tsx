@@ -190,7 +190,7 @@ export const ProjectsPage: React.FC = () => {
                       size="sm"
                       className="flex items-center gap-2 px-3 py-1 rounded-lg"
                       onClick={() =>
-                        navigate(`/project/${project.id}?editable=true`)
+                        navigate(`/projects/${project.id}?editable=true`)
                       }
                       title="Edit"
                     >
