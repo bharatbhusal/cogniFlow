@@ -220,12 +220,10 @@ const projectSlice = createSlice({
 
             state.currentProject = {
               ...state.currentProject,
-              name: updates.name_updated
-                ? action.payload.name
-                : state.currentProject.name,
-              description: updates.description_updated
-                ? action.payload.description
-                : state.currentProject.description,
+              ...(updates.name_updated && { name: action.payload.name }),
+              ...(updates.description_updated && {
+                description: action.payload.description,
+              }),
               documents: updates.files_added
                 ? [
                     ...(state.currentProject.documents || []),
@@ -243,45 +241,32 @@ const projectSlice = createSlice({
                 ? (state.currentProject.documents_count || 0) -
                   deletedIds.length
                 : state.currentProject.documents_count,
-            };
-          }
-
-          // Update project in list
-          const index = state.projects.findIndex(
-            (p) => p.id === action.payload.id
-          );
-          if (index !== -1) {
-            const deletedIds = Array.isArray(updates.deleted_files)
-              ? updates.deleted_files.map((d: any) => d.id)
-              : [];
-
-            state.projects[index] = {
-              ...state.projects[index],
-              name: updates.name_updated
-                ? action.payload.name
-                : state.projects[index].name,
-              description: updates.description_updated
-                ? action.payload.description
-                : state.projects[index].description,
-              documents:
-                updates.files_added > 0
-                  ? [
-                      ...(state.projects[index].documents || []),
-                      ...(updates.new_files || []),
-                    ]
-                  : updates.files_deleted > 0 && deletedIds.length > 0
-                  ? (state.projects[index].documents || []).filter(
-                      (doc) => !deletedIds.includes(doc.id)
-                    )
-                  : state.projects[index].documents,
-              documents_count:
-                updates.files_added > 0
-                  ? (state.projects[index].documents_count || 0) +
-                    updates.files_added
-                  : updates.files_deleted > 0 && deletedIds.length > 0
-                  ? (state.projects[index].documents_count || 0) -
-                    deletedIds.length
-                  : state.projects[index].documents_count,
+              workflow:
+                updates.workflow.status !== "unchanged"
+                  ? updates.workflow.to
+                  : state.currentProject.workflow,
+              llm_node:
+                updates.llm_node.status !== "unchanged"
+                  ? {
+                      llm_model_name: updates.llm_node.new_llm_model_name,
+                      openai_api_key: updates.llm_node.new_openai_api_key,
+                    }
+                  : state.currentProject.llm_node,
+              web_search_node:
+                updates.web_search_node.status !== "unchanged"
+                  ? {
+                      serpapi_api_key:
+                        updates.web_search_node.new_serpapi_api_key,
+                    }
+                  : state.currentProject.web_search_node,
+              knowledge_base_node:
+                updates.kb_node.status !== "unchanged"
+                  ? {
+                      openai_api_key: updates.kb_node.new_openai_api_key,
+                      embedding_model_name:
+                        updates.kb_node.new_embedding_model_name,
+                    }
+                  : state.currentProject.knowledge_base_node,
             };
           }
         }

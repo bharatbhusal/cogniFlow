@@ -93,6 +93,7 @@ export interface CreateProjectRequest {
   description?: string;
   pdf_files?: File[];
   delete_documents?: string[];
+  project_config?: ProjectConfig;
 }
 
 export interface QueryRequest {

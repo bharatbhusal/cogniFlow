@@ -65,10 +65,6 @@ const ProjectPageInner: React.FC = () => {
   );
   const [draftConfig, setDraftConfig] = useState<ProjectConfig | null>(null);
 
-  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
-    "idle"
-  );
-
   const getCurrentNodeDataFromCanvas = useCallback((currentNodes: Node[]) => {
     const nodeData: { [key: string]: any } = {};
 
@@ -606,41 +602,23 @@ const ProjectPageInner: React.FC = () => {
   const handleSaveProject = useCallback(async () => {
     if (!currentProject || !projectConfig || !projectId) {
       console.error("Missing project data for save operation");
-      setSaveStatus("error");
       return;
     }
 
+    const updateData = {
+      workflow: draftConfig?.workflow,
+      llm_node: draftConfig?.llm_node,
+      knowledge_base_node: draftConfig?.knowledge_base_node,
+      web_search_node: draftConfig?.web_search_node,
+    };
+
     try {
-      setSaveStatus("idle");
-      const updateData = {
-        workflow: projectConfig.workflow,
-        llm_node: {
-          llm_model_name: projectConfig.llm_node?.llm_model_name || "",
-          openai_api_key: projectConfig.llm_node?.openai_api_key || "",
-        },
-        knowledge_base_node: {
-          embedding_model_name:
-            projectConfig.knowledge_base_node?.embedding_model_name || "",
-          openai_api_key:
-            projectConfig.knowledge_base_node?.openai_api_key || "",
-        },
-        web_search_node: {
-          serpapi_api_key: projectConfig.web_search_node?.serpapi_api_key || "",
-        },
-      } as any;
-
-      await update(projectId, updateData);
-      setSaveStatus("success");
+      await update(projectId, { project_config: updateData });
       console.log("Project saved successfully!");
-
-      setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (error) {
-      setSaveStatus("error");
       console.error("Error saving project:", error);
-
-      setTimeout(() => setSaveStatus("idle"), 3000);
     }
-  }, [currentProject, projectConfig, projectId, update]);
+  }, [currentProject, projectConfig, projectId, update, draftConfig]);
 
   return (
     <div className="h-screen w-full flex">
@@ -653,7 +631,6 @@ const ProjectPageInner: React.FC = () => {
           onDragStart={onDragStart}
           onSaveProject={handleSaveProject}
           isSaving={loading}
-          saveStatus={saveStatus}
         />
       </div>
       <FlowEditor

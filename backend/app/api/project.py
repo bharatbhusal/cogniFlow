@@ -195,7 +195,7 @@ async def update_project(
 
         # Validate that at least one update operation is requested
         if not any(
-            [name is not None, description is not None, pdf_files, delete_document_ids]
+            [name is not None, description is not None, pdf_files, delete_document_ids, workflow, kb_node_config, llm_node_config, web_search_node_config]
         ):
             return create_error_response(
                 message="At least one update operation must be specified",
