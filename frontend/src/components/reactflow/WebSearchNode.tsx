@@ -11,6 +11,7 @@ interface WebSearchNodeData {
   onDelete?: (id: string) => void;
   onDataChange?: (id: string, field: string, value: string) => void;
   serpapi_api_key?: string;
+  readOnly?: boolean;
 }
 
 export const WebSearchNode = ({
@@ -30,25 +31,34 @@ export const WebSearchNode = ({
           <div className="font-bold mb-2 flex-1">
             {data.label || "Web Search"}
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => data.onDelete?.(id)}
-            className="ml-auto px-2 py-0 text-lg"
-          >
-            <CiTrash />
-          </Button>
+          {!data.readOnly && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => data.onDelete?.(id)}
+              className="ml-auto px-2 py-0 text-lg"
+            >
+              <CiTrash />
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 text-sm">
             <div className="flex items-center gap-2">
               <Label>SerpAPI API Key:</Label>
               <Input
-                value={data.serpapi_api_key || ""}
-                type="password"
+                disabled={data.readOnly}
+                value={
+                  data.readOnly && data.serpapi_api_key
+                    ? "**********"
+                    : data.serpapi_api_key || ""
+                }
+                type={!data.readOnly ? "text" : "password"}
                 placeholder="Enter SerpAPI API Key"
                 className="flex-1"
+                readOnly={data.readOnly}
                 onChange={(e) =>
+                  !data.readOnly &&
                   data.onDataChange?.(id, "serpapi_api_key", e.target.value)
                 }
               />

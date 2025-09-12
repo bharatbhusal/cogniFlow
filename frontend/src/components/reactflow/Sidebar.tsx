@@ -22,6 +22,7 @@ interface SidebarProps {
   ) => void;
   onSaveProject: () => Promise<void>;
   isSaving: boolean;
+  saveStatus?: "idle" | "success" | "error";
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -32,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onDragStart,
   onSaveProject,
   isSaving,
+  saveStatus = "idle",
 }) => {
   const navigate = useNavigate();
 
@@ -208,11 +210,35 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onClick={onSaveProject}
                   disabled={isSaving}
                   className="w-full"
+                  variant={
+                    saveStatus === "success"
+                      ? "secondary"
+                      : saveStatus === "error"
+                      ? "destructive"
+                      : "default"
+                  }
                 >
-                  <div className="flex items-center gap-2">
-                    <FaSave />
-                    Save Project
-                  </div>
+                  {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving...
+                    </div>
+                  ) : saveStatus === "success" ? (
+                    <div className="flex items-center gap-2">
+                      <FaSave />
+                      Saved!
+                    </div>
+                  ) : saveStatus === "error" ? (
+                    <div className="flex items-center gap-2">
+                      <FaSave />
+                      Error - Retry
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <FaSave />
+                      Save Project
+                    </div>
+                  )}
                 </Button>
               </div>
             </div>

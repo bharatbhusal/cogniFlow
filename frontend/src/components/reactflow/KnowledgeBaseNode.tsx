@@ -13,6 +13,7 @@ interface KnowledgeBaseNodeData {
   onDataChange?: (id: string, field: string, value: string) => void;
   openai_api_key?: string;
   embedding_model_name?: string;
+  readOnly?: boolean;
 }
 
 export const KnowledgeBaseNode = ({
@@ -32,24 +33,29 @@ export const KnowledgeBaseNode = ({
           <div className="font-bold mb-2 flex-1">
             {data.label || "Knowledge Base"}
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => data.onDelete?.(id)}
-            className="ml-auto px-2 py-0 text-lg"
-          >
-            <CiTrash />
-          </Button>
+          {!data.readOnly && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => data.onDelete?.(id)}
+              className="ml-auto px-2 py-0 text-lg"
+            >
+              <CiTrash />
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 text-sm">
             <div className="flex items-center gap-2">
               <Label>Embedding Model:</Label>
               <Input
+                disabled={data.readOnly}
                 value={data.embedding_model_name || ""}
                 placeholder="Enter Embedding Model Name"
                 className="flex-1"
+                readOnly={data.readOnly}
                 onChange={(e) =>
+                  !data.readOnly &&
                   data.onDataChange?.(
                     id,
                     "embedding_model_name",
@@ -61,11 +67,18 @@ export const KnowledgeBaseNode = ({
             <div className="flex items-center gap-2">
               <Label>OpenAI API Key:</Label>
               <Input
-                value={data.openai_api_key || ""}
-                type="password"
+                disabled={data.readOnly}
+                value={
+                  data.readOnly && data.openai_api_key
+                    ? "**********"
+                    : data.openai_api_key || ""
+                }
+                type={!data.readOnly ? "text" : "password"}
                 placeholder="Enter OpenAI API Key"
                 className="flex-1"
+                readOnly={data.readOnly}
                 onChange={(e) =>
+                  !data.readOnly &&
                   data.onDataChange?.(id, "openai_api_key", e.target.value)
                 }
               />
