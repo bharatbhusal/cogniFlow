@@ -1,10 +1,10 @@
 import { Position } from "reactflow";
 import { Card, CardHeader, CardContent } from "../ui/Card";
-import { Button } from "../ui/Button";
 import { LuFileInput } from "react-icons/lu";
 import { Textarea } from "../ui/Textarea";
-import { CiTrash } from "react-icons/ci";
 import CustomHandle from "./CustomHandle";
+import { Button } from "../ui/Button";
+import { CiTrash } from "react-icons/ci";
 
 export const UserQueryNode = ({ data, id }: any) => {
   return (

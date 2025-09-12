@@ -1,9 +1,10 @@
 import { Position } from "reactflow";
 import { Card, CardHeader, CardContent } from "../ui/Card";
-import { Button } from "../ui/Button";
-import { CiGlobe } from "react-icons/ci";
-import { CiTrash } from "react-icons/ci";
+import { CiGlobe, CiTrash } from "react-icons/ci";
 import CustomHandle from "./CustomHandle";
+import { Input } from "../ui/Input";
+import { Label } from "../ui/Label";
+import { Button } from "../ui/Button";
 
 export const WebSearchNode = ({ data, id }: any) => {
   return (
@@ -26,7 +27,20 @@ export const WebSearchNode = ({ data, id }: any) => {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="text-xs">Web search info.</div>
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <Label>SerpAPI API Key:</Label>
+              <Input
+                value={data.serpapi_api_key || ""}
+                type="password"
+                placeholder="Enter SerpAPI API Key"
+                className="flex-1"
+                onChange={(e) =>
+                  data.onDataChange?.(id, "serpapi_api_key", e.target.value)
+                }
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

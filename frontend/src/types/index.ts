@@ -39,6 +39,33 @@ export interface Project {
   messages_count?: number;
   documents?: Document[];
   messages?: Message[];
+  workflow?: string;
+  llm_node?: {
+    openai_api_key?: string;
+    llm_model_name?: string;
+  };
+  web_search_node?: {
+    serpapi_api_key?: string;
+  };
+  knowledge_base_node?: {
+    openai_api_key?: string;
+    embedding_model_name?: string;
+  };
+}
+
+export interface ProjectConfig {
+  workflow?: string;
+  llm_node?: {
+    openai_api_key?: string;
+    llm_model_name?: string;
+  };
+  web_search_node?: {
+    serpapi_api_key?: string;
+  };
+  knowledge_base_node?: {
+    openai_api_key?: string;
+    embedding_model_name?: string;
+  };
 }
 
 export interface Document {

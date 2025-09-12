@@ -1,10 +1,10 @@
 import { Position } from "reactflow";
 import { Card, CardHeader, CardContent } from "../ui/Card";
-import { Button } from "../ui/Button";
 import { LuFileOutput } from "react-icons/lu";
 import { Textarea } from "../ui/Textarea";
-import { CiTrash } from "react-icons/ci";
 import CustomHandle from "./CustomHandle";
+import { CiTrash } from "react-icons/ci";
+import { Button } from "../ui/Button";
 
 export const OutputNode = ({ data, id }: any) => {
   return (

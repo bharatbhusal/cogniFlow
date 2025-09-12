@@ -1,9 +1,11 @@
 import { Position } from "reactflow";
 import { Card, CardHeader, CardContent } from "../ui/Card";
-import { Button } from "../ui/Button";
 import { IoBookOutline } from "react-icons/io5";
-import { CiTrash } from "react-icons/ci";
 import CustomHandle from "./CustomHandle";
+import { Input } from "../ui/Input";
+import { Label } from "../ui/Label";
+import { Button } from "../ui/Button";
+import { CiTrash } from "react-icons/ci";
 
 export const KnowledgeBaseNode = ({ data, id }: any) => {
   return (
@@ -26,15 +28,34 @@ export const KnowledgeBaseNode = ({ data, id }: any) => {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="text-xs">
-            PDF Upload:{" "}
-            <input
-              type="file"
-              accept="application/pdf"
-              multiple
-              disabled={!data.editable}
-              className="mt-2"
-            />
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <Label>Embedding Model:</Label>
+              <Input
+                value={data.embedding_model_name || ""}
+                placeholder="Enter Embedding Model Name"
+                className="flex-1"
+                onChange={(e) =>
+                  data.onDataChange?.(
+                    id,
+                    "embedding_model_name",
+                    e.target.value
+                  )
+                }
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label>OpenAI API Key:</Label>
+              <Input
+                value={data.openai_api_key || ""}
+                type="password"
+                placeholder="Enter OpenAI API Key"
+                className="flex-1"
+                onChange={(e) =>
+                  data.onDataChange?.(id, "openai_api_key", e.target.value)
+                }
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
