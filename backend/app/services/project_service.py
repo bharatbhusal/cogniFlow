@@ -163,35 +163,39 @@ class ProjectService:
             }
             project = await ProjectRepository.create(db, project_data)
 
-            # Workflow and node config logic
+            if kb_node_config:
+                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
+                    "openai_api_key": kb_node_config_dict["openai_api_key"],
+                    "embedding_model_name": kb_node_config_dict["embedding_model_name"],
+                })
+            if llm_node_config:
+                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                await LlmNodeRepository.create(db=db, project_id=project.id, data={
+                    "openai_api_key": llm_node_config_dict["openai_api_key"],
+                    "llm_model_name": llm_node_config_dict["llm_model_name"],
+                })
+            
+            if web_search_node_config:
+                web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
+                await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
+                    "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
+                })
+                
             if workflow:
                 workflow_flags = ProjectService._parse_workflow(workflow)
-                if workflow_flags["hasKb"]:
-                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
-                    from app.repositories.knowledge_base_node import KnowledgeBaseNodeRepository
-                    await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
-                        "openai_api_key": kb_node_config_dict["openai_api_key"],
-                        "embedding_model_name": kb_node_config_dict["embedding_model_name"],
-                    })
-                if workflow_flags["hasLlm"]:
-                    llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
-                    from app.repositories.llm_node import LlmNodeRepository
-                    await LlmNodeRepository.create(db=db, project_id=project.id, data={
-                        "openai_api_key": llm_node_config_dict["openai_api_key"],
-                        "llm_model_name": llm_node_config_dict["llm_model_name"],
-                    })
-                if workflow_flags["hasWeb"]:
-                    web_search_node_config_dict = ProjectService._validate_web_config(web_search_node_config)
-                    from app.repositories.web_search_node import WebSearchNodeRepository
-                    await WebSearchNodeRepository.create(db=db, project_id=project.id, data={
-                        "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
-                    })
-                if workflow and isinstance(workflow, str) and workflow.strip():
-                    from app.repositories.workflow import WorkflowRepository
-                    await WorkflowRepository.create(db=db, project_id=project.id, data={
-                        "definition": workflow
-                    })
+                
+            if workflow_flags:
+                if workflow_flags["hasKb"]  and not kb_node_config:
+                    raise HTTPException(status_code=400, detail="Knowledge Base node required by workflow but not present. Please provide kb_node_config.")
 
+                if workflow_flags["hasLlm"] and not llm_node_config:
+                    raise HTTPException(status_code=400, detail="LLM node required by workflow but not present. Please provide llm_node_config.")
+
+                if workflow_flags["hasWeb"] and not web_search_node_config:
+                    raise HTTPException(status_code=400, detail="Web Search node required by workflow but not present. Please provide web_search_node_config.")
+
+            
             # Process PDF files
             processed_documents = []
             if pdf_files:
