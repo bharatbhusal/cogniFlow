@@ -22,7 +22,7 @@ export const OutputNode = ({
 }) => {
   return (
     <div className="p-1">
-      <CustomHandle type="target" position={Position.Left} />
+      <CustomHandle type="target" position={Position.Top} />
       <Card>
         <CardHeader className="pb-2 flex gap-2 flex-row items-center justify-start">
           <LuFileOutput size={40} />

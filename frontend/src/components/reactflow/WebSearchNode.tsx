@@ -23,7 +23,7 @@ export const WebSearchNode = ({
 }) => {
   return (
     <div className="p-1">
-      <CustomHandle type="target" position={Position.Left} />
+      <CustomHandle type="target" position={Position.Top} />
       <CustomHandle type="source" position={Position.Right} />
       <Card>
         <CardHeader className="pb-2 flex gap-2 flex-row items-center justify-start">

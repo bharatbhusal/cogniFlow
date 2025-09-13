@@ -70,7 +70,7 @@ export const KnowledgeBaseNode = ({
   return (
     <div className="p-1">
       <CustomHandle type="target" position={Position.Left} />
-      <CustomHandle type="source" position={Position.Right} />
+      <CustomHandle type="source" position={Position.Bottom} />
       <Card>
         <CardHeader className="pb-2 flex gap-2 flex-row items-center justify-start">
           <IoBookOutline size={40} />

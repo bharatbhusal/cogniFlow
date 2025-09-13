@@ -20,6 +20,7 @@ import FlowEditor from "../reactflow/FlowEditor";
 import Sidebar from "../reactflow/Sidebar";
 import { toast } from "react-toastify";
 import { Document } from "../../types";
+import { useNavigate } from "react-router-dom";
 
 const initialSidebarNodes = [
   {
@@ -50,6 +51,7 @@ interface EditProjectViewProps {
 }
 
 const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
+  const navigate = useNavigate();
   const { fetchOne, currentProject, setCurrent, update, loading } =
     useProjects();
 
@@ -139,10 +141,45 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
 
       allNodeTypes.forEach((nodeType, index) => {
         const nodeId = `${nodeType}-${index}`;
+
+        // Smart grid layout that adapts to screen dimensions
+        const nodeWidth = 500;
+        const nodeHeight = 450;
+        const padding = 20;
+        const screenWidth = window.innerWidth - 300; // Account for sidebar
+        const screenHeight = window.innerHeight - 100; // Account for margins
+
+        // Calculate how many nodes can fit in each dimension
+        const maxNodesPerRow = Math.floor((screenWidth - padding) / nodeWidth);
+        const maxNodesPerCol = Math.floor(
+          (screenHeight - padding) / nodeHeight
+        );
+
+        // Determine grid dimensions based on total nodes and available space
+        const totalNodes = allNodeTypes.length;
+        let nodesPerRow, nodesPerCol;
+
+        if (screenWidth > screenHeight) {
+          // Wide screen: prioritize horizontal layout, overflow vertically if needed
+          nodesPerRow = Math.min(maxNodesPerRow, totalNodes);
+          nodesPerCol = Math.ceil(totalNodes / nodesPerRow);
+        } else {
+          // Tall screen: prioritize vertical layout, overflow horizontally if needed
+          nodesPerCol = Math.min(maxNodesPerCol, totalNodes);
+          nodesPerRow = Math.ceil(totalNodes / nodesPerCol);
+        }
+
+        // Calculate position in grid
+        const row = Math.floor(index / nodesPerRow);
+        const col = index % nodesPerRow;
+
+        const x = col * nodeWidth + padding;
+        const y = row * nodeHeight + padding;
+
         newNodes.push({
           id: nodeId,
           type: nodeType,
-          position: { x: index * 400, y: 250 },
+          position: { x, y },
           data: {
             pdf_files: nodeType === "knowledgeBaseNode" ? pdfFiles : undefined,
             onDelete: onDeleteNode,
@@ -736,24 +773,19 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     };
 
     try {
-      const result = await update(projectId, {
+      update(projectId, {
         project_config: updateData,
         name: basicInfo.name,
         description: basicInfo.description,
         pdf_files: pdfFilesToSave,
         delete_documents: deleteDocuments,
       });
-      if (result.meta.requestStatus === "fulfilled") {
-        toast.success("Project updated successfully!");
-        console.log("Project saved successfully!");
-        // Update the projectConfig to match saved state
-        setProjectConfig(draftConfig);
-      } else if (result.meta.requestStatus === "rejected") {
-        toast.error((result.payload as string) || "Failed to save project");
-      }
+      toast.success(
+        "The update has been initiated. Please come back in a few minutes to see the changes."
+      );
+      navigate(`/projects`);
     } catch (error) {
       toast.error("Failed to save project");
-      console.error("Error saving project:", error);
     } finally {
       setIsSaving(false);
     }
