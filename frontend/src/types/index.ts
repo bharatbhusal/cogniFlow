@@ -50,6 +50,7 @@ export interface Project {
   knowledge_base_node?: {
     openai_api_key?: string;
     embedding_model_name?: string;
+    pdf_files?: File[];
   };
 }
 
@@ -65,6 +66,7 @@ export interface ProjectConfig {
   knowledge_base_node?: {
     openai_api_key?: string;
     embedding_model_name?: string;
+    pdf_files?: File[];
   };
 }
 

@@ -12,17 +12,10 @@ class Settings(BaseSettings):
     # JWT Configuration
     AUTH_SECRET_KEY: str = os.getenv("AUTH_SECRET_KEY")
 
-    # OpenAI Configuration
-    # OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
-
     # ChromaDB Configuration
-    CHROMADB_HOST: str = os.getenv("CHROMADB_HOST", "localhost")
-    CHROMADB_PORT: int = int(os.getenv("CHROMADB_PORT", "8000"))
-    CHROMADB_PERSIST_DIRECTORY: str = os.getenv(
-        "CHROMADB_PERSIST_DIRECTORY", "./chromadb_data"
-    )
-    CHROMADB_UPLOAD_DIR: str = os.getenv("CHROMADB_UPLOAD_DIR", "./uploads")
-    CHROMADB_COLLECTION_NAME: str = os.getenv("CHROMADB_COLLECTION_NAME", "documents")
+    CHROMADB_API_KEY: str = os.getenv("CHROMADB_API_KEY")
+    CHROMADB_TENANT: str = os.getenv("CHROMADB_TENANT")
+    CHROMADB_DATABASE: str = os.getenv("CHROMADB_DATABASE")
 
     # Application Settings (hardcoded)
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]

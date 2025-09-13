@@ -9,8 +9,6 @@ from app.types.user import AuthJWTTokenDict
 from app.middlewares.auth_middleware import get_current_user
 from app.config.db import get_db
 from app.utils.responses import create_success_response, create_error_response
-from app.services.knowledge_base import KnowledgeBaseService
-from app.services.llm_service import LLMService
 from app.utils.logger import log
 
 router = APIRouter()

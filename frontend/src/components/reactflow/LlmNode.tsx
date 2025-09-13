@@ -37,41 +37,39 @@ export const LlmNode = ({ data, id }: { data: LlmNodeData; id: string }) => {
             </Button>
           )}
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-2 text-sm">
-            <div className="flex items-center gap-2">
-              <Label>Model:</Label>
-              <Input
-                disabled={data.readOnly}
-                value={data.llm_model_name || data.model_name || ""}
-                placeholder="Enter LLM Model Name"
-                className="flex-1"
-                readOnly={data.readOnly}
-                onChange={(e) =>
-                  !data.readOnly &&
-                  data.onDataChange?.(id, "llm_model_name", e.target.value)
-                }
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Label>OpenAI API Key:</Label>
-              <Input
-                disabled={data.readOnly}
-                value={
-                  data.readOnly && data.openai_api_key
-                    ? "**********"
-                    : data.openai_api_key || ""
-                }
-                type={!data.readOnly ? "text" : "password"}
-                placeholder="Enter OpenAI API Key"
-                className="flex-1"
-                readOnly={data.readOnly}
-                onChange={(e) =>
-                  !data.readOnly &&
-                  data.onDataChange?.(id, "openai_api_key", e.target.value)
-                }
-              />
-            </div>
+        <CardContent className="flex flex-col gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Label>Model:</Label>
+            <Input
+              disabled={data.readOnly}
+              value={data.llm_model_name || data.model_name || ""}
+              placeholder="Enter LLM Model Name"
+              className="flex-1"
+              readOnly={data.readOnly}
+              onChange={(e) =>
+                !data.readOnly &&
+                data.onDataChange?.(id, "llm_model_name", e.target.value)
+              }
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label>OpenAI API Key:</Label>
+            <Input
+              disabled={data.readOnly}
+              value={
+                data.readOnly && data.openai_api_key
+                  ? "**********"
+                  : data.openai_api_key || ""
+              }
+              type={!data.readOnly ? "text" : "password"}
+              placeholder="Enter OpenAI API Key"
+              className="flex-1"
+              readOnly={data.readOnly}
+              onChange={(e) =>
+                !data.readOnly &&
+                data.onDataChange?.(id, "openai_api_key", e.target.value)
+              }
+            />
           </div>
         </CardContent>
       </Card>

@@ -22,6 +22,7 @@ import {
   CardFooter,
 } from "../components/ui/Card";
 import { Header } from "../components/ui/Header";
+import { LuView } from "react-icons/lu";
 
 export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -128,16 +129,16 @@ export const ProjectsPage: React.FC = () => {
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 No projects yet. Create your first project to get started!
               </p>
-              <Button onClick={() => setShowCreateModal(true)}>
-                Create Your First Project
-              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
                 <Card
+                  onClick={() =>
+                    navigate(`/projects/${project.id}?editable=false`)
+                  }
                   key={project.id}
-                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between"
+                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-slate-500 transition duration-200 ease-in-out"
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-2xl font-bold text-slate-100 mb-1">
@@ -151,14 +152,13 @@ export const ProjectsPage: React.FC = () => {
                           ? project.description!.slice(0, 200) + "..."
                           : project.description}
                       </CardDescription>
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <FaFilePdf className="text-red-400" />
-                        {project.documents_count} documents
-                      </span>
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <FaEdit className="text-slate-400" />
-                        {project.messages_count} messages
-                      </span>
+                      {project.messages_count! > 0 && (
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <FaEdit className="text-slate-400" />
+                          {project.messages_count} messages
+                        </span>
+                      )}
+
                       <span className="flex items-center gap-1 text-slate-500">
                         {project.created_at && (
                           <span>
@@ -169,52 +169,28 @@ export const ProjectsPage: React.FC = () => {
                       </span>
                     </div>
                   </CardContent>
-                  <CardFooter className="justify-end gap-3 border-t border-slate-700 pt-4 pb-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="flex items-center gap-2 px-3 py-1 rounded-lg"
-                      onClick={() =>
-                        navigate(`/projects/${project.id}?editable=false`)
-                      }
-                      title="View Documents"
-                    >
-                      <FaFilePdf className="text-white" />
-                    </Button>
-
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="flex items-center gap-2 px-3 py-1 rounded-lg"
-                      onClick={() => navigate(`/chat/${project.id}`)}
-                      title="Chat"
-                    >
-                      <FaFacebookMessenger className="text-white" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="flex items-center gap-2 px-3 py-1 rounded-lg"
-                      onClick={() =>
-                        navigate(`/projects/${project.id}?editable=true`)
-                      }
-                      title="Edit"
-                    >
-                      <FaEdit />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="flex items-center gap-2 px-3 py-1 rounded-lg"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteProject(project.id);
-                      }}
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </Button>
-                  </CardFooter>
+                  {project.workflow && (
+                    <CardFooter className="justify-end gap-3 border-t border-slate-700 pt-4 pb-2">
+                      {project.workflow && (
+                        <span className="flex items-center gap-1 text-slate-400">
+                          {project.workflow.split("_").map((step) => {
+                            const stepsMapping: { [key: string]: string } = {
+                              llm: "Language Model",
+                              kb: "Knowledge Base",
+                              web: "Web Search",
+                            };
+                            const mappedStep =
+                              stepsMapping[step] || step || "Unknown Step";
+                            return (
+                              <span className="flex items-center gap-1 text-gray-200 bg-gray-600 text-center px-2 py-1 rounded-lg text-sm">
+                                {mappedStep}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      )}
+                    </CardFooter>
+                  )}
                 </Card>
               ))}
             </div>

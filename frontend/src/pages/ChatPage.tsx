@@ -7,6 +7,7 @@ import { Textarea } from "../components/ui/Textarea";
 import { Message } from "../types";
 import { toast } from "react-toastify";
 import { FaChevronCircleLeft } from "react-icons/fa";
+import Sidebar from "../components/reactflow/Sidebar";
 
 export const ChatPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -73,10 +74,6 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  const handleBackToProjects = () => {
-    navigate("/projects");
-  };
-
   if (!project) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -87,93 +84,26 @@ export const ChatPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Header */}
-      <header className="shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center py-4 gap-2">
-            <Button variant="ghost" onClick={handleBackToProjects}>
-              <FaChevronCircleLeft size={24} />
-            </Button>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {project.name}
-            </h1>
-          </div>
-          {project.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {project.description}
-            </p>
-          )}
-        </div>
-      </header>
-
       {/* Chat Container */}
-      <div className="flex-1 flex max-w-7xl mx-auto w-full h-full">
-        {/* Sidebar - Project Info */}
-        <aside className="w-64 shadow p-4 hidden md:block h-full overflow-y-auto sticky top-0">
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                Project Info
-              </h3>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="font-medium">Documents:</span>{" "}
-                      {project.documents?.length ||
-                        project.documents_count ||
-                        0}
-                    </p>
-                    <p>
-                      <span className="font-medium">Messages:</span>{" "}
-                      {project.messages?.length || project.messages_count || 0}
-                    </p>
-                    <p>
-                      <span className="font-medium">Created:</span>{" "}
-                      {new Date(project.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-2">
-              {project.documents && project.documents.length > 0 && (
-                <>
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    What this Project Knows?
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {project.documents.map((doc, idx) => (
-                      <a
-                        key={idx}
-                        href={doc.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex text-sm items-center gap-1 px-2 py-1 bg-muted text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition w-full"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                          className="w-4 h-4 text-red-500"
-                        >
-                          <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.828A2 2 0 0 0 19.414 7.414l-5.828-5.828A2 2 0 0 0 12.172 1H6zm6 1.414L18.586 8H14a2 2 0 0 1-2-2V3.414zM6 4h6v4a4 4 0 0 0 4 4h4v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zm2 10a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2z" />
-                        </svg>
-                        <span className="truncate w-full">{doc.title}</span>
-                      </a>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </aside>
-
+      <div className="flex-1 flex mx-auto w-full h-full">
+        <div className="w-64 bg-gray-900 text-white shadow h-full overflow-y-auto flex-col gap-4 hidden sm:flex">
+          <Sidebar
+            project={project}
+            projectConfig={null}
+            draftConfig={null}
+            sidebarNodes={null}
+            onDragStart={() => {}}
+            onSaveProject={async () => {}}
+            isSaving={false}
+          />
+        </div>
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col h-full overflow-y-auto">
           {/* Messages Area */}
           <div className="flex-1 p-4 space-y-4">
+            <div className="bg-slate-800 p-2 rounded-md text-gray-300 sm:hidden">
+              {project.description}
+            </div>
             {project?.messages?.length === 0 ? (
               <div className="text-center py-12">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -233,13 +163,24 @@ export const ChatPage: React.FC = () => {
           </div>
 
           {/* Input Area */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            <form onSubmit={handleSendMessage} className="flex space-x-2">
+          <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+            <form
+              onSubmit={handleSendMessage}
+              className="flex gap-2 items-end justify-between"
+            >
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:hidden flex items-center justify-center min-h-[44px] max-h-32"
+                onClick={() => navigate(-1)}
+              >
+                <FaChevronCircleLeft size={20} />
+              </Button>
               <Textarea
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type your message here..."
-                className="flex-1 min-h-[44px] max-h-32 resize-none"
+                className="min-h-[44px] max-h-32 resize-none"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -250,7 +191,7 @@ export const ChatPage: React.FC = () => {
               <Button
                 type="submit"
                 disabled={!inputMessage.trim() || isLoading}
-                className="self-end"
+                className="min-h-[44px] max-h-32"
               >
                 Send
               </Button>

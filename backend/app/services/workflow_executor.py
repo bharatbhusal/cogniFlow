@@ -108,7 +108,7 @@ class WorkflowExecutor:
             api_key = kb_config.get("openai_api_key")
             model = kb_config.get("embedding_model_name")
             if api_key and model:
-                services["knowledge_base_service"] = KnowledgeBaseService(api_key=api_key, model=model)
+                services["knowledge_base_service"] = KnowledgeBaseService(api_key=api_key, model=model, vector_collection=model)
         
         # Create configured Web Search service instance
         web_config = project_config.get("web_search_node", {})

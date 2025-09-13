@@ -19,6 +19,7 @@ import { ProjectConfig } from "../../types";
 import FlowEditor from "../reactflow/FlowEditor";
 import Sidebar from "../reactflow/Sidebar";
 import { toast } from "react-toastify";
+import { Document } from "../../types";
 
 const initialSidebarNodes = [
   {
@@ -63,6 +64,24 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     null
   );
   const [draftConfig, setDraftConfig] = useState<ProjectConfig | null>(null);
+  const [pdfFiles, setPdfFiles] = useState<Document[]>([]); // saved pdfs
+  const [pdfFilesToSave, setPdfFilesToSave] = useState<File[]>([]); // new pdfs to save
+  const [deleteDocuments, setDeleteDocuments] = useState<string[]>([]); // ids of pdfs to delete
+  const [basicInfo, setBasicInfo] = useState<{
+    name: string;
+    description: string;
+  }>({
+    name: "",
+    description: "",
+  });
+
+  // Debug: Track pdfFilesToSave changes
+  useEffect(() => {
+    console.log(
+      "🔄 pdfFilesToSave state changed:",
+      pdfFilesToSave.map((f) => f.name)
+    );
+  }, [pdfFilesToSave]);
 
   const getCurrentNodeDataFromCanvas = useCallback((currentNodes: Node[]) => {
     const nodeData: { [key: string]: any } = {};
@@ -84,7 +103,10 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     (
       projectConfig: ProjectConfig,
       onDeleteNode: (id: string) => void,
-      onNodeDataChange: (id: string, field: string, value: string) => void
+      onNodeDataChange: (id: string, field: string, value: string) => void,
+      onFileUpload: (id: string, file: File) => void,
+      onFileRemove: (node_id: string, file: File) => void,
+      onFilesToDeleteChange: (fileId: string) => void
     ) => {
       if (!projectConfig.workflow) return { nodes: [], edges: [] };
 
@@ -122,8 +144,19 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
           type: nodeType,
           position: { x: index * 400, y: 250 },
           data: {
+            pdf_files: nodeType === "knowledgeBaseNode" ? pdfFiles : undefined,
             onDelete: onDeleteNode,
+            files_to_upload:
+              nodeType === "knowledgeBaseNode" ? pdfFilesToSave : [],
             onDataChange: onNodeDataChange,
+            onFileUpload:
+              nodeType === "knowledgeBaseNode" ? onFileUpload : undefined,
+            onFileRemove:
+              nodeType === "knowledgeBaseNode" ? onFileRemove : undefined,
+            onFilesToDeleteChange:
+              nodeType === "knowledgeBaseNode"
+                ? onFilesToDeleteChange
+                : undefined,
             label: initialSidebarNodes.find((n) => n.id === nodeType)?.label,
             ...nodeDataMapping[nodeType],
           },
@@ -145,7 +178,7 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
 
       return { nodes: newNodes, edges: newEdges };
     },
-    []
+    [pdfFiles, pdfFilesToSave]
   );
 
   const calculateWorkflowFromConnectedNodes = useCallback(
@@ -318,6 +351,70 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     [calculateWorkflowFromConnectedNodes, isNodeInConnectedPath]
   );
 
+  const onFileUpload = useCallback((node_id: string, file: File) => {
+    console.log("🔄 onFileUpload called:", file.name);
+    setPdfFilesToSave((prev) => {
+      console.log(
+        "📁 Adding file to pdfFilesToSave:",
+        [...prev, file].map((f) => f.name)
+      );
+      return [...prev, file];
+    });
+
+    // Update the node data with the uploaded files
+    setNodes((prevNodes) => {
+      return prevNodes.map((node) =>
+        node.id === node_id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                files_to_upload: [...(node.data.files_to_upload || []), file],
+              },
+            }
+          : node
+      );
+    });
+  }, []);
+
+  const onFileRemove = useCallback((node_id: string, file: File) => {
+    setPdfFilesToSave((prev) => prev.filter((f) => f.name !== file.name));
+
+    // Update the node data with the uploaded files
+    setNodes((prevNodes) => {
+      return prevNodes.map((node) =>
+        node.id === node_id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                files_to_upload: node.data.files_to_upload.filter(
+                  (f: File) => f.name !== file.name
+                ),
+              },
+            }
+          : node
+      );
+    });
+  }, []);
+
+  const onFilesToDeleteChange = useCallback((fileId: string) => {
+    setDeleteDocuments((prev) => {
+      if (!prev.includes(fileId)) {
+        return [...prev, fileId];
+      } else {
+        return prev.filter((id) => id !== fileId);
+      }
+    });
+  }, []);
+
+  const onBasicInfoChange = useCallback((field: string, value: string) => {
+    setBasicInfo((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
   // Load project data
   useEffect(() => {
     if (projectId) {
@@ -336,7 +433,10 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
           web_search_node: currentProject.web_search_node,
         },
         onDeleteNode,
-        onNodeDataChange
+        onNodeDataChange,
+        onFileUpload,
+        onFileRemove,
+        onFilesToDeleteChange
       );
 
       setNodes(newNodes);
@@ -383,7 +483,21 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
         serpapi_api_key: currentProject?.web_search_node?.serpapi_api_key,
       },
     });
-  }, [currentProject, createWorkflowNodes, getCurrentNodeDataFromCanvas]);
+    setPdfFiles(currentProject?.documents || []);
+
+    // Initialize basic project info
+    setBasicInfo({
+      name: currentProject?.name || "",
+      description: currentProject?.description || "",
+    });
+  }, [
+    currentProject,
+    createWorkflowNodes,
+    getCurrentNodeDataFromCanvas,
+    onFileUpload,
+    onFileRemove,
+    onFilesToDeleteChange,
+  ]);
 
   const onDeleteNode = useCallback(
     (nodeId: string) => {
@@ -571,8 +685,14 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
         position,
         data: {
           label,
+          pdf_files: type === "knowledgeBaseNode" ? pdfFiles : undefined,
           onDelete: onDeleteNode,
+          files_to_upload: type === "knowledgeBaseNode" ? pdfFilesToSave : [],
           onDataChange: onNodeDataChange,
+          onFileUpload: type === "knowledgeBaseNode" ? onFileUpload : undefined,
+          onFileRemove: type === "knowledgeBaseNode" ? onFileRemove : undefined,
+          onFilesToDeleteChange:
+            type === "knowledgeBaseNode" ? onFilesToDeleteChange : undefined,
           ...getNodeData(type),
         },
       };
@@ -583,7 +703,16 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
       });
       setSidebarNodes((list) => list.filter((n) => n.id !== type));
     },
-    [screenToFlowPosition, onDeleteNode, onNodeDataChange, draftConfig]
+    [
+      screenToFlowPosition,
+      onDeleteNode,
+      onNodeDataChange,
+      onFileUpload,
+      onFileRemove,
+      onFilesToDeleteChange,
+      pdfFiles,
+      draftConfig,
+    ]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -607,7 +736,13 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     };
 
     try {
-      const result = await update(projectId, { project_config: updateData });
+      const result = await update(projectId, {
+        project_config: updateData,
+        name: basicInfo.name,
+        description: basicInfo.description,
+        pdf_files: pdfFilesToSave,
+        delete_documents: deleteDocuments,
+      });
       if (result.meta.requestStatus === "fulfilled") {
         toast.success("Project updated successfully!");
         console.log("Project saved successfully!");
@@ -622,7 +757,16 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentProject, projectConfig, projectId, update, draftConfig]);
+  }, [
+    currentProject,
+    projectConfig,
+    projectId,
+    update,
+    draftConfig,
+    basicInfo,
+    pdfFiles,
+    deleteDocuments,
+  ]);
 
   return (
     <div className="h-screen w-full flex">

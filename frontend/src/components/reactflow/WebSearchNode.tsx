@@ -42,27 +42,25 @@ export const WebSearchNode = ({
             </Button>
           )}
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-2 text-sm">
-            <div className="flex items-center gap-2">
-              <Label>SerpAPI API Key:</Label>
-              <Input
-                disabled={data.readOnly}
-                value={
-                  data.readOnly && data.serpapi_api_key
-                    ? "**********"
-                    : data.serpapi_api_key || ""
-                }
-                type={!data.readOnly ? "text" : "password"}
-                placeholder="Enter SerpAPI API Key"
-                className="flex-1"
-                readOnly={data.readOnly}
-                onChange={(e) =>
-                  !data.readOnly &&
-                  data.onDataChange?.(id, "serpapi_api_key", e.target.value)
-                }
-              />
-            </div>
+        <CardContent className="flex flex-col gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Label>SerpAPI API Key:</Label>
+            <Input
+              disabled={data.readOnly}
+              value={
+                data.readOnly && data.serpapi_api_key
+                  ? "**********"
+                  : data.serpapi_api_key || ""
+              }
+              type={!data.readOnly ? "text" : "password"}
+              placeholder="Enter SerpAPI API Key"
+              className="flex-1"
+              readOnly={data.readOnly}
+              onChange={(e) =>
+                !data.readOnly &&
+                data.onDataChange?.(id, "serpapi_api_key", e.target.value)
+              }
+            />
           </div>
         </CardContent>
       </Card>

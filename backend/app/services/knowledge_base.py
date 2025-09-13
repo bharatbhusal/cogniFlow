@@ -2,7 +2,6 @@ import uuid
 from typing import List, Optional, Dict, Any
 import fitz as PyMuPDF 
 import chromadb
-import openai
 from openai import AsyncOpenAI
 from app.config.env import get_settings
 from app.utils.errors import (
@@ -17,14 +16,33 @@ from app.utils.errors import (
     EmbeddingError,
     AIQuotaExceededError,
     OpenAIError,
-    ModelNotFoundError
 )
 from app.utils.logger import log
 
 settings = get_settings()
 
 class KnowledgeBaseService:
-    def __init__(self, api_key: str, model: str):
+    """
+    Knowledge Base service with ChromaDB Cloud integration and dynamic embedding model support.
+    
+    Features:
+    - ChromaDB Cloud integration for scalable vector storage
+    - Supports any OpenAI embedding model with automatic dimension handling
+    - Model-specific collection naming to prevent dimension conflicts
+    - Comprehensive error handling and validation
+    - Maintains backward compatibility with existing OpenAI functions
+    
+    Model Support:
+    - Any OpenAI embedding model (text-embedding-3-small, text-embedding-3-large, etc.)
+    - Automatic dimension detection and handling
+    - Each model gets its own collection to avoid dimension conflicts
+    
+    Usage:
+    - Collections are named: {CHROMADB_COLLECTION_NAME}_{model_name_with_underscores}
+    - Example: "documents_text_embedding_3_large" for text-embedding-3-large model
+    - Use list_available_collections() to see all existing collections
+    """
+    def __init__(self, api_key: str, model: str, vector_collection: str):
         """Initialize Knowledge Base service with required API key and embedding model"""
         if not api_key:
             raise ValueError("OpenAI API key is required")
@@ -34,19 +52,37 @@ class KnowledgeBaseService:
         self.api_key = api_key
         self.model = model
         
-        # Initialize ChromaDB client
+        # Initialize ChromaDB cloud client
         try:
-            # Use persistent client with configured directory
-            self.chroma_client = chromadb.PersistentClient(
-                path=settings.CHROMADB_PERSIST_DIRECTORY
+            self.chroma_client = chromadb.CloudClient(
+                api_key=settings.CHROMADB_API_KEY,
+                tenant=settings.CHROMADB_TENANT,
+                database=settings.CHROMADB_DATABASE
             )
-            self.collection_name = settings.CHROMADB_COLLECTION_NAME
+            
+            # Test the connection
+            self.chroma_client.heartbeat()
+            
+            # Create model-specific collection name to handle different embedding dimensions
+            self.collection_name = vector_collection
             self.collection = self._get_or_create_collection()
         except Exception as e:
-            raise ChromaDBError(
-                message="Failed to initialize ChromaDB",
-                details=str(e)
-            )
+            error_msg = str(e).lower()
+            if "unauthorized" in error_msg or "api key" in error_msg:
+                raise ChromaDBError(
+                    message="ChromaDB Cloud authentication failed",
+                    details="Please check your ChromaDB API key, tenant, and database settings."
+                )
+            elif "network" in error_msg or "connection" in error_msg:
+                raise ChromaDBError(
+                    message="Failed to connect to ChromaDB Cloud",
+                    details="Please check your network connection and ChromaDB Cloud service status."
+                )
+            else:
+                raise ChromaDBError(
+                    message="Failed to initialize ChromaDB Cloud",
+                    details=str(e)
+                )
         
         # Initialize OpenAI client for embeddings
         self.openai_client = AsyncOpenAI(api_key=api_key)
@@ -149,11 +185,15 @@ class KnowledgeBaseService:
         return embeddings[0]
     
     def _get_or_create_collection(self):
-        """Get or create the main documents collection"""
+        """Get or create the main documents collection with model-specific naming"""
         try:
             return self.chroma_client.get_or_create_collection(
                 name=self.collection_name,
-                metadata={"description": "Document chunks for RAG system"}
+                metadata={
+                    "description": "Document chunks for RAG system",
+                    "embedding_model": self.model,
+                    "supports_dynamic_dimensions": True
+                }
             )
         except Exception as e:
             raise ChromaDBError(
@@ -210,6 +250,7 @@ class KnowledgeBaseService:
             }
             
         except Exception as e:
+            log("Process Document Error", e)
             raise DocumentIngestionError(
                 message="Document ingestion failed",
                 details=f"Error processing document {filename}: {str(e)}"
@@ -360,6 +401,24 @@ class KnowledgeBaseService:
             return chunk_ids
             
         except Exception as e:
+            error_message = str(e)
+            
+            # Provide more specific error messages for dimension mismatches
+            if "dimension" in error_message.lower():
+                # Log detailed information for debugging
+                log("Store Chunks Error - Dimension Mismatch", {
+                    "error": error_message,
+                    "model": self.model,
+                    "collection": self.collection_name,
+                    "embeddings_shape": f"{len(embeddings)}x{len(embeddings[0]) if embeddings else 0}"
+                })
+                
+                raise VectorStoreError(
+                    message=f"Embedding dimension mismatch for model '{self.model}'",
+                    details=f"The collection '{self.collection_name}' expects different embedding dimensions than what your model produces. You may need to use a different collection or model. Error: {error_message}"
+                )
+            
+            log("Store Chunks Error", e)
             raise VectorStoreError(
                 message="Failed to store chunks in vector database",
                 details=str(e)

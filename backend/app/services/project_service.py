@@ -210,7 +210,7 @@ class ProjectService:
                     kb_api_key = kb_node_config_dict.get("openai_api_key")
                     embedding_model = kb_node_config_dict.get("embedding_model_name")
                     
-                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model)
+                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model, vector_collection=embedding_model)
                 for pdf_file in pdf_files:
                     try:
                         # Create KnowledgeBase service instance with user credentials
@@ -370,8 +370,12 @@ class ProjectService:
                 for doc_id in delete_document_ids:
                     document = await DocumentRepository.get_by_id(db, doc_id)
                     if document and document.project_id == project_id:
-                        # Create a minimal service instance for deletion (doesn't need real API keys)
-                        kb_service_instance = KnowledgeBaseService(api_key="dummy", model="dummy")
+                        updated_project = await ProjectRepository.get_by_id(db, project_id)
+                        if updated_project and updated_project.knowledge_base_node:
+                            kb_api_key = updated_project.knowledge_base_node.openai_api_key
+                            embedding_model = updated_project.knowledge_base_node.embedding_model_name
+                            
+                        kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model, vector_collection=embedding_model)
                         chromadb_deleted = kb_service_instance.delete_document(doc_id)
                         postgres_deleted = await DocumentRepository.delete(db, doc_id)
                         changes["deleted_files"].append({
@@ -399,7 +403,7 @@ class ProjectService:
                         kb_api_key = updated_project.knowledge_base_node.openai_api_key
                         embedding_model = updated_project.knowledge_base_node.embedding_model_name
                         
-                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model)
+                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model, vector_collection=embedding_model)
                 for pdf_file in pdf_files:
                     try:
                         # Create KnowledgeBase service instance with user credentials
@@ -507,7 +511,7 @@ class ProjectService:
                     old_embedding_model_name = existing_kb_node.embedding_model_name
                     new_openai_api_key = kb_node_config_dict.get("openai_api_key")
                     new_embedding_model_name = kb_node_config_dict.get("embedding_model_name")
-                    if not (old_openai_api_key == new_openai_api_key and old_embedding_model_name == new_embedding_model_name):
+                    if not (old_openai_api_key == new_openai_api_key):
                         await KnowledgeBaseNodeRepository.upsert(db=db, project_id=project_id, data={
                             "openai_api_key": new_openai_api_key,
                             "embedding_model_name": new_embedding_model_name,
@@ -518,6 +522,11 @@ class ProjectService:
                             "new_openai_api_key": new_openai_api_key,
                             "old_embedding_model_name": old_embedding_model_name,
                             "new_embedding_model_name": new_embedding_model_name
+                        }
+                    if old_embedding_model_name != new_embedding_model_name:
+                        changes["kb_node"] = {
+                            "status": "unchanged",
+                            "message": "Embedding model name can't be changed. Please create a new project."
                         }
 
             if llm_node_config:
@@ -608,10 +617,14 @@ class ProjectService:
             # Delete documents from ChromaDB
             documents = await DocumentRepository.get_by_project_id(db, project_id)
             deleted_documents = []
+            updated_project = await ProjectRepository.get_by_id(db, project_id)
+            if updated_project and updated_project.knowledge_base_node:
+                kb_api_key = updated_project.knowledge_base_node.openai_api_key
+                embedding_model = updated_project.knowledge_base_node.embedding_model_name
 
             for doc in documents:
                 # Create a minimal service instance for deletion (doesn't need real API keys)
-                kb_service_instance = KnowledgeBaseService(api_key="dummy", model="dummy")
+                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model, vector_collection=embedding_model)
                 chromadb_deleted = kb_service_instance.delete_document(doc.id)
                 deleted_documents.append(
                     {
@@ -719,7 +732,8 @@ class ProjectService:
                 # Create service instance to validate both model type and API key
                 kb_service = KnowledgeBaseService(
                     api_key=kb_node_config_dict["openai_api_key"],
-                    model=kb_node_config_dict["embedding_model_name"]
+                    model=kb_node_config_dict["embedding_model_name"],
+                    vector_collection=kb_node_config_dict["embedding_model_name"]
                 )
                 # Validate API key using the service instance
                 await kb_service.validate_api_key_and_model()
