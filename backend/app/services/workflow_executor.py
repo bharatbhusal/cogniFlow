@@ -5,6 +5,7 @@ from app.utils.errors import (
     InvalidWorkflowError,
     RAGPipelineError,
 )
+from app.utils.logger import log
 
 
 class WorkflowExecutor:
@@ -79,7 +80,7 @@ class WorkflowExecutor:
                 message="Simple workflow execution failed", details=str(e)
             )
 
-    async def _create_configured_services(self, project_config: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_configured_services(self, project_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create pre-configured service instances with API keys and models from project config"""
         from app.services.llm_service import LLMService
         from app.services.knowledge_base import KnowledgeBaseService
@@ -114,6 +115,8 @@ class WorkflowExecutor:
         services["chromadb_chunk_ids"] = project_config.get("chromadb_chunk_ids", [])
         services["project_id"] = project_config.get("project_id")
         
+        # log("Configured Services", f"Services configured: {list(services.values())}")
+        
         return services
 
     async def _execute_kb_step(
@@ -123,8 +126,11 @@ class WorkflowExecutor:
         try:
             context["execution_log"].append("Executing Knowledge Base retrieval")
             
+            # log("Executing KB Step", f"Context before KB step: {context}")
             # Get configured KB service instance
             kb_service_instance = configured_services.get("knowledge_base_service")
+            
+            # log("KB Service Instance", f"KB Service: {kb_service_instance}")
             if not kb_service_instance:
                 raise ValueError("Knowledge Base service not configured for this project")
             
@@ -153,10 +159,12 @@ class WorkflowExecutor:
                 context["execution_log"].append(f"Retrieved {len(relevant_chunks)} relevant chunks from knowledge base")
             else:
                 context["execution_log"].append("No documents found in knowledge base")
+                raise ValueError("No documents found in knowledge base")
 
             return context
 
         except Exception as e:
+            # log("Error in KB", f"Error in _execute_kb_step: {e}")
             raise RAGPipelineError(
                 message="Knowledge base step execution failed", details=str(e)
             )
@@ -214,6 +222,9 @@ class WorkflowExecutor:
             
             # Get configured LLM service instance
             llm_service_instance = configured_services.get("llm_service")
+            
+            # log("LLM Service Instance", f"LLM Service: {llm_service_instance}")
+            
             if not llm_service_instance:
                 raise ValueError("LLM service not configured for this project")
             
@@ -222,6 +233,7 @@ class WorkflowExecutor:
             if context["web_results"]:
                 all_context.extend(context["web_results"])
 
+            # log("LLM with Context", f"Using context: {context}")
             # Generate response using configured LLM service
             if all_context:
                 # Use RAG pipeline with context

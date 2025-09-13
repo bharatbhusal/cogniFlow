@@ -13,6 +13,7 @@ from app.utils.errors import *
 from app.utils.cuid_str import cuid_str
 from app.utils.pockity import upload_file_to_pockity
 import json
+from app.utils.logger import log
 class ProjectService:
 
     @staticmethod
@@ -164,13 +165,13 @@ class ProjectService:
             project = await ProjectRepository.create(db, project_data)
 
             if kb_node_config:
-                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                kb_node_config_dict = await ProjectService._validate_kb_config(kb_node_config)
                 await KnowledgeBaseNodeRepository.create(db=db, project_id=project.id, data={
                     "openai_api_key": kb_node_config_dict["openai_api_key"],
                     "embedding_model_name": kb_node_config_dict["embedding_model_name"],
                 })
             if llm_node_config:
-                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                llm_node_config_dict = await ProjectService._validate_llm_config(llm_node_config)
                 await LlmNodeRepository.create(db=db, project_id=project.id, data={
                     "openai_api_key": llm_node_config_dict["openai_api_key"],
                     "llm_model_name": llm_node_config_dict["llm_model_name"],
@@ -205,7 +206,7 @@ class ProjectService:
                 kb_api_key = None
                 embedding_model = None
                 if kb_node_config:
-                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    kb_node_config_dict = await ProjectService._validate_kb_config(kb_node_config)
                     kb_api_key = kb_node_config_dict.get("openai_api_key")
                     embedding_model = kb_node_config_dict.get("embedding_model_name")
                     
@@ -388,7 +389,7 @@ class ProjectService:
                 kb_api_key = None
                 embedding_model = None
                 if kb_node_config:
-                    kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                    kb_node_config_dict = await ProjectService._validate_kb_config(kb_node_config)
                     kb_api_key = kb_node_config_dict.get("openai_api_key")
                     embedding_model = kb_node_config_dict.get("embedding_model_name")
                 else:
@@ -493,7 +494,7 @@ class ProjectService:
             web_node_exists = updated_project.web_search_node is not None
             
             if kb_node_config:
-                kb_node_config_dict = ProjectService._validate_kb_config(kb_node_config)
+                kb_node_config_dict = await ProjectService._validate_kb_config(kb_node_config)
                 if not kb_node_exists:
                     await KnowledgeBaseNodeRepository.create(db=db, project_id=project_id, data={
                         "openai_api_key": kb_node_config_dict.get("openai_api_key"),
@@ -520,7 +521,7 @@ class ProjectService:
                         }
 
             if llm_node_config:
-                llm_node_config_dict = ProjectService._validate_llm_config(llm_node_config)
+                llm_node_config_dict = await ProjectService._validate_llm_config(llm_node_config)
                 if not llm_node_exists:
                     await LlmNodeRepository.create(db=db, project_id=project_id, data={
                         "openai_api_key": llm_node_config_dict.get("openai_api_key"),
@@ -656,6 +657,9 @@ class ProjectService:
                 raise HTTPException(
                     status_code=403, detail="Not authorized to access this project"
                 )
+            if not project.workflow:
+                raise HTTPException(status_code=400, detail="Project has no workflow defined")
+            
             
             # Get ChromaDB chunk IDs for the project
             chromadb_chunk_ids = await DocumentRepository.get_project_chromadb_chunk_ids(
@@ -699,18 +703,77 @@ class ProjectService:
         }
 
     @staticmethod
-    def _validate_kb_config(kb_node_config: str):
-        kb_node_config = json.loads(kb_node_config)
-        if not ("openai_api_key" in kb_node_config and kb_node_config["openai_api_key"] and "embedding_model_name" in kb_node_config and kb_node_config["embedding_model_name"]):
-            raise HTTPException(status_code=400, detail="Knowledge Base node config is incomplete.")
-        return kb_node_config
+    async def _validate_kb_config(kb_node_config: str):
+        """Validate Knowledge Base node configuration including API key and model"""
+        try:
+            kb_node_config_dict = json.loads(kb_node_config)
+            
+            # Check required fields
+            if not ("openai_api_key" in kb_node_config_dict and kb_node_config_dict["openai_api_key"] and 
+                    "embedding_model_name" in kb_node_config_dict and kb_node_config_dict["embedding_model_name"]):
+                raise HTTPException(status_code=400, detail="Knowledge Base node config is incomplete.")
+            
+            # Validate API key and model with OpenAI
+            from app.services.knowledge_base import KnowledgeBaseService
+            try:
+                # Create service instance to validate both model type and API key
+                kb_service = KnowledgeBaseService(
+                    api_key=kb_node_config_dict["openai_api_key"],
+                    model=kb_node_config_dict["embedding_model_name"]
+                )
+                # Validate API key using the service instance
+                await kb_service.validate_api_key()
+            except Exception as e:
+                log("ERROR", str(e))
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Knowledge Base configuration validation failed: {str(e)}"
+                )
+            
+            return kb_node_config_dict
+            
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON in Knowledge Base node config.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error validating Knowledge Base config: {str(e)}")
 
     @staticmethod
-    def _validate_llm_config(llm_node_config: str):
-        llm_node_config = json.loads(llm_node_config)
-        if not ("openai_api_key" in llm_node_config and llm_node_config["openai_api_key"] and "llm_model_name" in llm_node_config and llm_node_config["llm_model_name"]):
-            raise HTTPException(status_code=400, detail="LLM node config is incomplete.")
-        return llm_node_config
+    async def _validate_llm_config(llm_node_config: str):
+        """Validate LLM node configuration including API key and model"""
+        try:
+            llm_node_config_dict = json.loads(llm_node_config)
+            
+            # Check required fields
+            if not ("openai_api_key" in llm_node_config_dict and llm_node_config_dict["openai_api_key"] and 
+                    "llm_model_name" in llm_node_config_dict and llm_node_config_dict["llm_model_name"]):
+                raise HTTPException(status_code=400, detail="LLM node config is incomplete.")
+            
+            # Validate API key and model with OpenAI
+            from app.services.llm_service import LLMService
+            try:
+                # Create service instance to validate both model type and API key
+                llm_service = LLMService(
+                    api_key=llm_node_config_dict["openai_api_key"],
+                    model=llm_node_config_dict["llm_model_name"]
+                )
+                # Validate API key using the service instance
+                await llm_service.validate_api_key()
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"LLM configuration validation failed: {str(e)}"
+                )
+            
+            return llm_node_config_dict
+            
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON in LLM node config.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error validating LLM config: {str(e)}")
 
     @staticmethod
     def _validate_web_config(web_search_node_config: str):

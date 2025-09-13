@@ -2,6 +2,7 @@ import uuid
 from typing import List, Optional, Dict, Any
 import fitz as PyMuPDF 
 import chromadb
+import openai
 from openai import AsyncOpenAI
 from app.config.env import get_settings
 from app.utils.errors import (
@@ -14,18 +15,25 @@ from app.utils.errors import (
     RetrievalError,
     ContextRetrievalError,
     EmbeddingError,
-    AIQuotaExceededError
+    AIQuotaExceededError,
+    OpenAIError,
+    ModelNotFoundError
 )
+from app.utils.logger import log
 
 settings = get_settings()
 
 class KnowledgeBaseService:
     def __init__(self, api_key: str, model: str):
-        """Initialize Knowledge Base service with required API key and model"""
+        """Initialize Knowledge Base service with required API key and embedding model"""
         if not api_key:
             raise ValueError("OpenAI API key is required")
         if not model:
             raise ValueError("Embedding model is required")
+            
+        # Validate that only embedding models are used
+        if not self._is_embedding_model(model):
+            raise ValueError(f"Invalid model '{model}' for KnowledgeBaseService. Only embedding models are supported.")
             
         self.api_key = api_key
         self.model = model
@@ -46,6 +54,100 @@ class KnowledgeBaseService:
         
         # Initialize OpenAI client for embeddings
         self.openai_client = AsyncOpenAI(api_key=api_key)
+        
+    def _is_embedding_model(self, model: str) -> bool:
+        """
+        Check if the given model is a valid embedding model.
+        
+        Args:
+            model: The model name to check
+            
+        Returns:
+            bool: True if model is an embedding model, False otherwise
+        """
+        # Supported embedding models
+        embedding_models = {
+            # Current embedding models
+            "text-embedding-3-small",
+            "text-embedding-3-large", 
+            "text-embedding-ada-002",
+        }
+        
+        # Check exact matches first
+        if model in embedding_models:
+            return True
+
+            
+        # Check for partial matches (for future embedding models)
+        model_lower = model.lower()
+        if "embedding" in model_lower and not any(keyword in model_lower for keyword in ["gpt", "whisper", "dall-e", "moderation"]):
+            return True
+            
+        return False
+        
+    async def validate_api_key(self) -> Dict[str, Any]:
+        """
+        Validate OpenAI API key and embedding model by calling OpenAI API.
+        
+        Args:
+            api_key: OpenAI API key to validate
+            model: Embedding model name to validate
+            
+        Returns:
+            Dict containing validation results
+            
+        Raises:
+            OpenAIError: If API key is invalid
+            ModelNotFoundError: If model doesn't exist or isn't accessible
+            ValueError: If model is not an embedding model
+        """
+        try:
+            # Try to retrieve the specific model
+            try:
+                model_info = await self.openai_client.models.retrieve(self.model)
+                log("DEBUG", model_info)
+                return {
+                    "valid": True,
+                    "model": model_info.id,
+                    "model_object": model_info.object,
+                    "owned_by": model_info.owned_by,
+                    "message": "API key and embedding model validated successfully"
+                }
+                
+            except openai.NotFoundError:
+                # Model doesn't exist or user doesn't have access
+                raise ModelNotFoundError(
+                    message=f"Embedding model '{self.model}' not found or not accessible",
+                    details=f"The embedding model '{self.model}' either doesn't exist or your API key doesn't have access to it"
+                )
+            except openai.PermissionDeniedError:
+                # User doesn't have permission to access this model
+                raise ModelNotFoundError(
+                    message=f"No permission to access embedding model '{self.model}'",
+                    details=f"Your API key doesn't have permission to access the embedding model '{self.model}'"
+                )
+                
+        except openai.AuthenticationError:
+            # Invalid API key
+            raise OpenAIError(
+                message="Invalid OpenAI API key",
+                details="The provided API key is invalid or expired"
+            )
+        except openai.RateLimitError:
+            # Rate limit hit during validation
+            raise OpenAIError(
+                message="Rate limit exceeded during validation",
+                details="OpenAI rate limit hit while validating API key and embedding model"
+            )
+        except (ModelNotFoundError, OpenAIError, ValueError):
+            # Re-raise our custom exceptions
+            raise
+        except Exception as e:
+            # Unexpected error
+            raise OpenAIError(
+                message="Unexpected error during API validation",
+                details=f"Error validating OpenAI API key and embedding model: {str(e)}"
+            )
         
     async def generate_embeddings(
         self,

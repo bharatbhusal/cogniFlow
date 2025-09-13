@@ -295,12 +295,12 @@ async def query_project(
         # Get workflow definition from project config
         workflow_def = project_config.get("workflow_definition")
         
-        log("Workflow", workflow_def)
+        # log("Workflow", workflow_def)
         
-        previous_messages = project_details["messages"][::-1]
+        previous_messages = project_details["messages"]
         conversation_history = []
         
-        log("Previous Messages", previous_messages)
+        # log("Previous Messages", previous_messages)
         
         # Take last 10 messages and reverse to chronological order
         for msg in previous_messages[:10]:
@@ -309,7 +309,7 @@ async def query_project(
         # Save user query as a message
         user_message = {"project_id": project_id, "content": query, "role": "user"}
         
-        log("User Message", user_message)
+        # log("User Message", user_message)
 
         await MessageRepository.create(db, user_message)
 
@@ -317,8 +317,8 @@ async def query_project(
         workflow_def = project_config.get("workflow_definition")
         if workflow_def:
             try:
-                log(f"Executing workflow: {workflow_def}")
-                
+                log("Executing workflow", workflow_def)
+
                 # Execute the workflow using the workflow executor
                 workflow_result = await workflow_executor.execute_workflow(
                     user_query=query,
