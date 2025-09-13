@@ -4,6 +4,8 @@ import {
   FaTrash,
   FaEdit,
   FaFacebookMessenger,
+  FaTruckLoading,
+  FaSpinner,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
@@ -22,18 +24,13 @@ import {
   CardFooter,
 } from "../components/ui/Card";
 import { Header } from "../components/ui/Header";
-import { LuView } from "react-icons/lu";
+import { LuMessageCircleReply, LuView } from "react-icons/lu";
 
 export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const { projects, fetchAll, remove, update, totalCount, loading } =
-    useProjects();
+  const { projects, fetchAll, remove, loading } = useProjects();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
 
   useEffect(() => {
     fetchAll()
@@ -59,26 +56,6 @@ export const ProjectsPage: React.FC = () => {
     } catch (error) {
       toast.error("Failed to delete project");
       console.error("Error deleting project:", error);
-    }
-  };
-
-  const handleUpdateProject = async (data: {
-    name?: string;
-    description?: string;
-    pdf_files?: File[];
-    delete_documents?: string[];
-  }) => {
-    try {
-      const result = await update(selectedProject.id, data);
-      if (result.meta.requestStatus === "fulfilled") {
-        toast.success("Project updated successfully!");
-        setShowUpdateModal(false);
-      } else if (result.meta.requestStatus === "rejected") {
-        toast.error((result.payload as string) || "Failed to update project");
-      }
-    } catch (error) {
-      toast.error("Failed to update project");
-      console.error("Error updating project:", error);
     }
   };
 
@@ -134,11 +111,8 @@ export const ProjectsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
                 <Card
-                  onClick={() =>
-                    navigate(`/projects/${project.id}?editable=false`)
-                  }
                   key={project.id}
-                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between cursor-pointer hover:border-slate-500 transition duration-200 ease-in-out"
+                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between"
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-2xl font-bold text-slate-100 mb-1">
@@ -168,29 +142,96 @@ export const ProjectsPage: React.FC = () => {
                         )}
                       </span>
                     </div>
+                    {project.workflow && project && project.workflow && (
+                      <span className="flex items-center gap-1 text-slate-400">
+                        {project.workflow.split("_").map((step) => {
+                          const stepsMapping: { [key: string]: string } = {
+                            llm: "Language Model",
+                            kb: "Knowledge Base",
+                            web: "Web Search",
+                          };
+                          const mappedStep =
+                            stepsMapping[step] || step || "Unknown Step";
+                          return (
+                            <span className="flex items-center gap-1 text-gray-200 bg-gray-600 text-center px-2 py-1 rounded-lg text-sm">
+                              {mappedStep}
+                            </span>
+                          );
+                        })}
+                      </span>
+                    )}
                   </CardContent>
-                  {project.workflow && (
-                    <CardFooter className="justify-end gap-3 border-t border-slate-700 pt-4 pb-2">
-                      {project.workflow && (
-                        <span className="flex items-center gap-1 text-slate-400">
-                          {project.workflow.split("_").map((step) => {
-                            const stepsMapping: { [key: string]: string } = {
-                              llm: "Language Model",
-                              kb: "Knowledge Base",
-                              web: "Web Search",
-                            };
-                            const mappedStep =
-                              stepsMapping[step] || step || "Unknown Step";
-                            return (
-                              <span className="flex items-center gap-1 text-gray-200 bg-gray-600 text-center px-2 py-1 rounded-lg text-sm">
-                                {mappedStep}
-                              </span>
-                            );
-                          })}
-                        </span>
+                  <CardFooter className="justify-end gap-3 border-t border-slate-700 pt-4 pb-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/chat/${project.id}`);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      {loading ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <LuMessageCircleReply />
                       )}
-                    </CardFooter>
-                  )}
+                      Chat
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/projects/${project.id}?editable=true`);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      {" "}
+                      {loading ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaEdit />
+                      )}
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/projects/${project.id}?editable=false`);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <LuView />
+                      View
+                    </Button>
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={loading}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (
+                          window.confirm(
+                            "Are you sure you want to delete this project? This action cannot be undone."
+                          )
+                        ) {
+                          handleDeleteProject(project.id);
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      {loading ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaTrash />
+                      )}
+                      Delete
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>

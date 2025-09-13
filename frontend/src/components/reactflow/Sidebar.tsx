@@ -1,10 +1,17 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaChevronCircleLeft, FaEdit, FaFilePdf, FaSave } from "react-icons/fa";
+import {
+  FaChevronCircleLeft,
+  FaEdit,
+  FaFilePdf,
+  FaSave,
+  FaTextHeight,
+} from "react-icons/fa";
 import { IoMenuOutline } from "react-icons/io5";
 import { Button } from "../ui/Button";
 import { Card, CardContent } from "../ui/Card";
 import { Project, ProjectConfig } from "../../types";
+import { LuMessageCircle, LuMessageCircleReply } from "react-icons/lu";
 
 interface SidebarProps {
   project: Project | null;
@@ -83,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => navigate(`/chat/${project?.id}`)}
               className="w-full flex items-center gap-2 mt-2"
             >
-              <FaEdit />
+              <LuMessageCircleReply />
               Chat
             </Button>
           )}

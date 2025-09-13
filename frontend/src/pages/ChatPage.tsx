@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProjects } from "../hooks/useProjects";
 import { Button } from "../components/ui/Button";
-import { Card, CardContent } from "../components/ui/Card";
 import { Textarea } from "../components/ui/Textarea";
 import { Message } from "../types";
 import { toast } from "react-toastify";
-import { FaChevronCircleLeft } from "react-icons/fa";
+import { FaChevronCircleLeft, FaSpinner } from "react-icons/fa";
 import Sidebar from "../components/reactflow/Sidebar";
+import { IoSend } from "react-icons/io5";
 
 export const ChatPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -23,6 +23,7 @@ export const ChatPage: React.FC = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [canSendMessage, setCanSendMessage] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -38,6 +39,9 @@ export const ChatPage: React.FC = () => {
           toast.error("Failed to load project");
           console.error("Error fetching project:", error);
         });
+      const hasKb = project?.workflow?.split("_").find((part) => part === "kb");
+      const hasDocuments = project?.documents && project.documents.length > 0;
+      setCanSendMessage(!hasKb || hasDocuments || false);
     }
   }, [projectId]);
 
@@ -177,9 +181,14 @@ export const ChatPage: React.FC = () => {
                 <FaChevronCircleLeft size={20} />
               </Button>
               <Textarea
+                disabled={project.documents?.length === 0}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Type your message here..."
+                placeholder={
+                  canSendMessage
+                    ? "No documents available. Please upload documents to chat."
+                    : "Type your message here..."
+                }
                 className="min-h-[44px] max-h-32 resize-none"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -190,10 +199,10 @@ export const ChatPage: React.FC = () => {
               />
               <Button
                 type="submit"
-                disabled={!inputMessage.trim() || isLoading}
+                disabled={!inputMessage.trim() || isLoading || !canSendMessage}
                 className="min-h-[44px] max-h-32"
               >
-                Send
+                {loading ? <FaSpinner className="animate-spin" /> : <IoSend />}
               </Button>
             </form>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
