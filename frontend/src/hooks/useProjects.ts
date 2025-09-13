@@ -7,7 +7,6 @@ import {
   updateProject,
   deleteProject,
   queryProject,
-  clearError as clearProjectsError,
   setCurrentProject,
   clearCurrentProject,
 } from "../store/slices/projectSlice";
@@ -15,7 +14,6 @@ import {
   selectProjectsList,
   selectCurrentProject,
   selectProjectsLoading,
-  selectProjectsError,
   selectProjectsCount,
   selectProjectById,
   selectProjectsBySearch,
@@ -29,7 +27,6 @@ export const useProjects = () => {
   const projects = useAppSelector(selectProjectsList);
   const currentProject = useAppSelector(selectCurrentProject);
   const loading = useAppSelector(selectProjectsLoading);
-  const error = useAppSelector(selectProjectsError);
   const totalCount = useAppSelector(selectProjectsCount);
 
   const create = useCallback(
@@ -71,11 +68,6 @@ export const useProjects = () => {
     [dispatch]
   );
 
-  const clearError = useCallback(
-    () => dispatch(clearProjectsError()),
-    [dispatch]
-  );
-
   // Selector functions
   const getProjectById = useCallback(
     (projectId: string) => (state: any) => selectProjectById(state, projectId),
@@ -92,7 +84,6 @@ export const useProjects = () => {
     projects,
     currentProject,
     loading,
-    error,
     totalCount,
     create,
     fetchAll,
@@ -102,7 +93,6 @@ export const useProjects = () => {
     query,
     setCurrent,
     clearCurrent,
-    clearError,
     getProjectById,
     searchProjects,
   };

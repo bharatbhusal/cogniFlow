@@ -18,6 +18,7 @@ import { LuFileOutput, LuFileInput } from "react-icons/lu";
 import { ProjectConfig } from "../../types";
 import FlowEditor from "../reactflow/FlowEditor";
 import Sidebar from "../reactflow/Sidebar";
+import { toast } from "react-toastify";
 
 const initialSidebarNodes = [
   {
@@ -54,9 +55,6 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [sidebarNodes, setSidebarNodes] = useState(initialSidebarNodes);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
-    "idle"
-  );
   const [isSaving, setIsSaving] = useState(false);
 
   const { screenToFlowPosition } = useReactFlow();
@@ -595,12 +593,11 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
 
   const handleSaveProject = useCallback(async () => {
     if (!currentProject || !projectConfig || !projectId) {
-      console.error("Missing project data for save operation");
+      toast.error("Missing project data for save operation");
       return;
     }
 
     setIsSaving(true);
-    setSaveStatus("idle");
 
     const updateData = {
       workflow: draftConfig?.workflow,
@@ -610,19 +607,18 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     };
 
     try {
-      await update(projectId, { project_config: updateData });
-      setSaveStatus("success");
-      console.log("Project saved successfully!");
-
-      // Update the projectConfig to match saved state
-      setProjectConfig(draftConfig);
-
-      // Reset success status after 2 seconds
-      setTimeout(() => setSaveStatus("idle"), 2000);
+      const result = await update(projectId, { project_config: updateData });
+      if (result.meta.requestStatus === "fulfilled") {
+        toast.success("Project updated successfully!");
+        console.log("Project saved successfully!");
+        // Update the projectConfig to match saved state
+        setProjectConfig(draftConfig);
+      } else if (result.meta.requestStatus === "rejected") {
+        toast.error((result.payload as string) || "Failed to save project");
+      }
     } catch (error) {
+      toast.error("Failed to save project");
       console.error("Error saving project:", error);
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
     } finally {
       setIsSaving(false);
     }
@@ -639,7 +635,6 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
           onDragStart={onDragStart}
           onSaveProject={handleSaveProject}
           isSaving={isSaving}
-          saveStatus={saveStatus}
         />
       </div>
       <FlowEditor

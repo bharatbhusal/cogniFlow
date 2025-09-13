@@ -9,7 +9,6 @@ export {
   registerUser,
   getCurrentUser,
   logout,
-  clearError as clearAuthError,
   setToken,
   clearAuth,
 } from "./store/slices/authSlice";
@@ -22,7 +21,6 @@ export {
   updateProject,
   deleteProject,
   queryProject,
-  clearError as clearProjectsError,
   setCurrentProject,
   clearCurrentProject,
   updateProjectInList,

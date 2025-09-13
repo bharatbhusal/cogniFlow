@@ -2,14 +2,20 @@ import React from "react";
 import { Button } from "./Button";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignOut = () => {
-    logout();
-    navigate("/login");
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully!");
+      navigate("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   const handleLogin = () => {

@@ -15,27 +15,25 @@ import {
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, loading, error } = useAuth();
+  const { login, loading } = useAuth();
   const [credentials, setCredentials] = useState({
     email: "",
     password: "",
   });
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const result = await login(credentials);
       if (result.meta.requestStatus === "fulfilled") {
+        toast.success("Login successful!");
         navigate("/projects");
+      } else if (result.meta.requestStatus === "rejected") {
+        toast.error((result.payload as string) || "Login failed");
       }
     } catch (error) {
-      toast.error("Login failed!");
+      toast.error("Login failed");
+      console.error("Login error:", error);
     }
   };
 

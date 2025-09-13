@@ -13,7 +13,6 @@ const initialState: ProjectState = {
   currentProject: null,
   totalCount: 0,
   loading: false,
-  error: null,
 };
 
 // Async thunks
@@ -24,7 +23,11 @@ export const createProject = createAsyncThunk(
       const response = await apiClient.createProject(projectData);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to create project"
+      );
     }
   }
 );
@@ -36,7 +39,11 @@ export const fetchProjects = createAsyncThunk(
       const response = await apiClient.getProjects();
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch projects"
+      );
     }
   }
 );
@@ -51,7 +58,11 @@ export const fetchProject = createAsyncThunk(
       }
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch project"
+      );
     }
   }
 );
@@ -75,7 +86,11 @@ export const updateProject = createAsyncThunk(
       }
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update project"
+      );
     }
   }
 );
@@ -87,7 +102,11 @@ export const deleteProject = createAsyncThunk(
       await apiClient.deleteProject(projectId);
       return projectId;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to delete project"
+      );
     }
   }
 );
@@ -102,7 +121,11 @@ export const queryProject = createAsyncThunk(
       const response = await apiClient.queryProject(projectId, queryData);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to query project"
+      );
     }
   }
 );
@@ -112,9 +135,6 @@ const projectSlice = createSlice({
   name: "projects",
   initialState,
   reducers: {
-    clearError: (state) => {
-      state.error = null;
-    },
     setCurrentProject: (state, action: PayloadAction<Project | null>) => {
       state.currentProject = action.payload;
     },
@@ -141,7 +161,6 @@ const projectSlice = createSlice({
     builder
       .addCase(createProject.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(createProject.fulfilled, (state, action) => {
         state.loading = false;
@@ -155,14 +174,12 @@ const projectSlice = createSlice({
       })
       .addCase(createProject.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
       });
 
     // Fetch projects
     builder
       .addCase(fetchProjects.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(fetchProjects.fulfilled, (state, action) => {
         state.loading = false;
@@ -173,14 +190,12 @@ const projectSlice = createSlice({
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
       });
 
     // Fetch single project
     builder
       .addCase(fetchProject.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(fetchProject.fulfilled, (state, action) => {
         state.loading = false;
@@ -198,14 +213,12 @@ const projectSlice = createSlice({
       })
       .addCase(fetchProject.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
       });
 
     // Update project
     builder
       .addCase(updateProject.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(updateProject.fulfilled, (state, action) => {
         state.loading = false;
@@ -273,14 +286,12 @@ const projectSlice = createSlice({
       })
       .addCase(updateProject.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
       });
 
     // Delete project
     builder
       .addCase(deleteProject.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(deleteProject.fulfilled, (state, action) => {
         state.loading = false;
@@ -297,14 +308,12 @@ const projectSlice = createSlice({
       })
       .addCase(deleteProject.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
       });
 
     // Query project
     builder
       .addCase(queryProject.pending, (state, action) => {
         state.loading = true;
-        state.error = null;
         state.currentProject?.messages!.push({
           id: "temp-id-" + Date.now(),
           content: action.meta.arg.queryData.query,
@@ -318,13 +327,11 @@ const projectSlice = createSlice({
       })
       .addCase(queryProject.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
       });
   },
 });
 
 export const {
-  clearError,
   setCurrentProject,
   clearCurrentProject,
   updateProjectInList,

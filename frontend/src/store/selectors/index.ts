@@ -8,7 +8,6 @@ export const selectUser = (state: RootState) => state.auth.user;
 export const selectIsAuthenticated = (state: RootState) =>
   state.auth.isAuthenticated;
 export const selectAuthLoading = (state: RootState) => state.auth.loading;
-export const selectAuthError = (state: RootState) => state.auth.error;
 export const selectToken = (state: RootState) => state.auth.token;
 
 // Projects selectors
@@ -18,7 +17,6 @@ export const selectCurrentProject = (state: RootState) =>
   state.projects.currentProject;
 export const selectProjectsLoading = (state: RootState) =>
   state.projects.loading;
-export const selectProjectsError = (state: RootState) => state.projects.error;
 export const selectProjectsCount = (state: RootState) =>
   state.projects.totalCount;
 

@@ -26,15 +26,8 @@ import { Header } from "../components/ui/Header";
 export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const {
-    projects,
-    loading,
-    error,
-    create: createProject,
-    fetchAll: fetchProjects,
-    remove: deleteProject,
-    update: updateProject,
-  } = useProjects();
+  const { projects, fetchAll, remove, update, totalCount, loading } =
+    useProjects();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -42,21 +35,29 @@ export const ProjectsPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<any>(null);
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
+    fetchAll()
+      .then((result) => {
+        if (result.meta.requestStatus === "rejected") {
+          toast.error((result.payload as string) || "Failed to load projects");
+        }
+      })
+      .catch((error) => {
+        toast.error("Failed to load projects");
+        console.error("Error loading projects:", error);
+      });
+  }, [fetchAll]);
 
   const handleDeleteProject = async (projectId: string) => {
     try {
-      await deleteProject(projectId);
-      toast.success("Project deleted successfully!");
+      const result = await remove(projectId);
+      if (result.meta.requestStatus === "fulfilled") {
+        toast.success("Project deleted successfully!");
+      } else if (result.meta.requestStatus === "rejected") {
+        toast.error((result.payload as string) || "Failed to delete project");
+      }
     } catch (error) {
-      toast.error("Failed to delete project!");
+      toast.error("Failed to delete project");
+      console.error("Error deleting project:", error);
     }
   };
 
@@ -67,11 +68,16 @@ export const ProjectsPage: React.FC = () => {
     delete_documents?: string[];
   }) => {
     try {
-      await updateProject(selectedProject.id, data);
-      setShowUpdateModal(false);
-      toast.success("Project updated successfully!");
+      const result = await update(selectedProject.id, data);
+      if (result.meta.requestStatus === "fulfilled") {
+        toast.success("Project updated successfully!");
+        setShowUpdateModal(false);
+      } else if (result.meta.requestStatus === "rejected") {
+        toast.error((result.payload as string) || "Failed to update project");
+      }
     } catch (error) {
-      toast.error("Failed to update project!");
+      toast.error("Failed to update project");
+      console.error("Error updating project:", error);
     }
   };
 

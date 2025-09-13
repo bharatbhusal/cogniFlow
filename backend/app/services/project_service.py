@@ -182,6 +182,8 @@ class ProjectService:
                     "serpapi_api_key": web_search_node_config_dict["serpapi_api_key"]
                 })
                 
+            workflow_flags=None
+            
             if workflow:
                 workflow_flags = ProjectService._parse_workflow(workflow)
                 

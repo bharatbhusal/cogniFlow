@@ -28,9 +28,18 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     if (projectId) {
-      fetchOne(projectId).then((res) => {
-        setProject(res.payload);
-      });
+      fetchOne(projectId)
+        .then((res) => {
+          if (res.meta.requestStatus === "fulfilled") {
+            setProject(res.payload);
+          } else if (res.meta.requestStatus === "rejected") {
+            toast.error((res.payload as string) || "Failed to load project");
+          }
+        })
+        .catch((error) => {
+          toast.error("Failed to load project");
+          console.error("Error fetching project:", error);
+        });
     }
   }, [projectId]);
 
@@ -52,8 +61,18 @@ export const ChatPage: React.FC = () => {
     };
     setInputMessage("");
     setIsLoading(true);
-    query(projectId!, { query: userMessage.content });
-    setIsLoading(false);
+
+    try {
+      const result = await query(projectId!, { query: userMessage.content });
+      if (result.meta.requestStatus === "rejected") {
+        toast.error((result.payload as string) || "Failed to send message");
+      }
+    } catch (error) {
+      toast.error("Failed to send message");
+      console.error("Error sending message:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateProject = async (data: {
@@ -63,11 +82,16 @@ export const ChatPage: React.FC = () => {
     delete_documents?: string[];
   }) => {
     try {
-      await updateProject(projectId!, data);
-      setShowUpdateModal(false);
-      toast.success("Project updated successfully!");
+      const result = await updateProject(projectId!, data);
+      if (result.meta.requestStatus === "fulfilled") {
+        toast.success("Project updated successfully!");
+        setShowUpdateModal(false);
+      } else if (result.meta.requestStatus === "rejected") {
+        toast.error((result.payload as string) || "Failed to update project");
+      }
     } catch (error) {
-      toast.error("Failed to update project!");
+      toast.error("Failed to update project");
+      console.error("Error updating project:", error);
     }
   };
 

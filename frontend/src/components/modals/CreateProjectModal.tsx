@@ -7,6 +7,7 @@ import { Textarea } from "../ui/Textarea";
 import { CardHeader } from "../ui/Card";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "../../redux";
+import { toast } from "react-toastify";
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -36,26 +37,28 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     async (e: any) => {
       e.preventDefault();
       if (!projectData.name.trim()) {
-        alert("Project name is required");
+        toast.error("Project name is required");
         return;
       }
 
       try {
         const result = await create(projectData);
-        if (
-          result.payload &&
-          typeof result.payload === "object" &&
-          result.payload !== null &&
-          "id" in result.payload
-        ) {
-          navigate(`/projects/${result.payload.id}?editable=true`);
+        if (result.meta.requestStatus === "fulfilled") {
+          const project = result.payload as any;
+          if (project?.id) {
+            toast.success("Project created successfully!");
+            onClose();
+            navigate(`/projects/${project.id}?editable=true`);
+          }
+        } else if (result.meta.requestStatus === "rejected") {
+          toast.error((result.payload as string) || "Failed to create project");
         }
       } catch (error) {
+        toast.error("Failed to create project");
         console.error("Error creating project:", error);
-        alert("Failed to create project");
       }
     },
-    [projectData, create, navigate]
+    [projectData, create, navigate, onClose]
   );
 
   return (
