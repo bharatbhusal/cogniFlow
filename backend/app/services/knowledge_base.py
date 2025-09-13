@@ -30,11 +30,7 @@ class KnowledgeBaseService:
             raise ValueError("OpenAI API key is required")
         if not model:
             raise ValueError("Embedding model is required")
-            
-        # Validate that only embedding models are used
-        if not self._is_embedding_model(model):
-            raise ValueError(f"Invalid model '{model}' for KnowledgeBaseService. Only embedding models are supported.")
-            
+           
         self.api_key = api_key
         self.model = model
         
@@ -54,7 +50,11 @@ class KnowledgeBaseService:
         
         # Initialize OpenAI client for embeddings
         self.openai_client = AsyncOpenAI(api_key=api_key)
-        
+
+    async def validate_api_key_and_model(self) -> Dict[str, Any]:
+        """Validate the API key and model asynchronously"""
+        return await self._validate_api_key() and self._is_embedding_model(self.model)
+
     def _is_embedding_model(self, model: str) -> bool:
         """
         Check if the given model is a valid embedding model.
@@ -85,7 +85,7 @@ class KnowledgeBaseService:
             
         return False
         
-    async def validate_api_key(self) -> Dict[str, Any]:
+    async def _validate_api_key(self) -> Dict[str, Any]:
         """
         Validate OpenAI API key and embedding model by calling OpenAI API.
         
@@ -102,43 +102,7 @@ class KnowledgeBaseService:
             ValueError: If model is not an embedding model
         """
         try:
-            # Try to retrieve the specific model
-            try:
-                model_info = await self.openai_client.models.retrieve(self.model)
-                log("DEBUG", model_info)
-                return {
-                    "valid": True,
-                    "model": model_info.id,
-                    "model_object": model_info.object,
-                    "owned_by": model_info.owned_by,
-                    "message": "API key and embedding model validated successfully"
-                }
-                
-            except openai.NotFoundError:
-                # Model doesn't exist or user doesn't have access
-                raise ModelNotFoundError(
-                    message=f"Embedding model '{self.model}' not found or not accessible",
-                    details=f"The embedding model '{self.model}' either doesn't exist or your API key doesn't have access to it"
-                )
-            except openai.PermissionDeniedError:
-                # User doesn't have permission to access this model
-                raise ModelNotFoundError(
-                    message=f"No permission to access embedding model '{self.model}'",
-                    details=f"Your API key doesn't have permission to access the embedding model '{self.model}'"
-                )
-                
-        except openai.AuthenticationError:
-            # Invalid API key
-            raise OpenAIError(
-                message="Invalid OpenAI API key",
-                details="The provided API key is invalid or expired"
-            )
-        except openai.RateLimitError:
-            # Rate limit hit during validation
-            raise OpenAIError(
-                message="Rate limit exceeded during validation",
-                details="OpenAI rate limit hit while validating API key and embedding model"
-            )
+            return True if  await self.openai_client.models.retrieve(self.model) else False
         except (ModelNotFoundError, OpenAIError, ValueError):
             # Re-raise our custom exceptions
             raise

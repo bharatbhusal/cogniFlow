@@ -23,14 +23,14 @@ class LLMService:
         if not model:
             raise ValueError("LLM model is required")
             
-        # Validate that only LLM/text models are used
-        if not self._is_llm_model(model):
-            raise ValueError(f"Invalid model '{model}' for LLMService. Only text generation models are supported.")
-            
         self.api_key = api_key
         self.model = model
         self.client = AsyncOpenAI(api_key=api_key)
-        
+    
+    async def validate_key_and_model(self) -> Dict[str, Any]:
+        """Validate the API key and model asynchronously"""
+        return await self._validate_api_key() and self._is_llm_model(self.model)
+
     def _is_llm_model(self, model: str) -> bool:
         """
         Check if the given model is a valid LLM/text generation model.
@@ -56,39 +56,13 @@ class LLMService:
             "text-davinci-003", "text-davinci-002", "davinci", "curie", "babbage", "ada"
         }
         
-        # Non-text models that don't belong in LLMService
-        non_text_models = {
-            # Embedding models
-            "text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002",
-            # Audio models
-            "whisper-1", "tts-1", "tts-1-hd",
-            # Image models
-            "dall-e-2", "dall-e-3",
-            # Moderation models
-            "text-moderation-latest", "text-moderation-stable"
-        }
-        
         # Check exact matches first
         if model in text_models:
             return True
-        if model in non_text_models:
+        else:
             return False
-            
-        # Check for partial matches (for future text models or fine-tuned models)
-        model_lower = model.lower()
         
-        # GPT models are generally text models
-        if any(prefix in model_lower for prefix in ["gpt-4", "gpt-3.5", "gpt-3", "text-davinci", "davinci"]):
-            return True
-            
-        # Exclude known non-text model types
-        if any(keyword in model_lower for keyword in ["embedding", "whisper", "dall-e", "tts", "moderation"]):
-            return False
-            
-        # Default to True for unknown models (assume text generation)
-        return True
-        
-    async def validate_api_key(self) -> Dict[str, Any]:
+    async def _validate_api_key(self) -> Dict[str, Any]:
         """
         Validate OpenAI API key and model by calling OpenAI API.
         
@@ -105,38 +79,8 @@ class LLMService:
             ValueError: If model is not a text generation model
         """
         try:
-           
-            # Try to retrieve the specific model
-            try:
-                model_info = await self.client.models.retrieve(self.model)
+            return True if  await self.client.models.retrieve(self.model) else False
                 
-                return {
-                    "valid": True,
-                    "model": model_info.id,
-                    "model_object": model_info.object,
-                    "owned_by": model_info.owned_by,
-                    "message": "API key and model validated successfully"
-                }
-                
-            except openai.NotFoundError:
-                # Model doesn't exist or user doesn't have access
-                raise ModelNotFoundError(
-                    message=f"Model '{self.model}' not found or not accessible",
-                    details=f"The model '{self.model}' either doesn't exist or your API key doesn't have access to it"
-                )
-            except openai.PermissionDeniedError:
-                # User doesn't have permission to access this model
-                raise ModelNotFoundError(
-                    message=f"No permission to access model '{self.model}'",
-                    details=f"Your API key doesn't have permission to access the model '{self.model}'"
-                )
-                
-        except openai.AuthenticationError:
-            # Invalid API key
-            raise OpenAIError(
-                message="Invalid OpenAI API key",
-                details="The provided API key is invalid or expired"
-            )
         except openai.RateLimitError:
             # Rate limit hit during validation
             raise OpenAIError(

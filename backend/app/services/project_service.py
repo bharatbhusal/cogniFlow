@@ -722,7 +722,7 @@ class ProjectService:
                     model=kb_node_config_dict["embedding_model_name"]
                 )
                 # Validate API key using the service instance
-                await kb_service.validate_api_key()
+                await kb_service.validate_api_key_and_model()
             except Exception as e:
                 log("ERROR", str(e))
                 raise HTTPException(
@@ -759,7 +759,7 @@ class ProjectService:
                     model=llm_node_config_dict["llm_model_name"]
                 )
                 # Validate API key using the service instance
-                await llm_service.validate_api_key()
+                await llm_service.validate_key_and_model()
             except Exception as e:
                 raise HTTPException(
                     status_code=400, 
