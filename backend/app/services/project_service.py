@@ -692,7 +692,7 @@ class ProjectService:
     
     @staticmethod
     def _parse_workflow(workflow: str) -> Dict[str, bool]:
-        allowed_workflows = {"kb_llm", "kb_web_llm", "web", "llm", "web_llm"}
+        allowed_workflows = {"kb_llm", "kb_web_llm", "llm", "web_llm"}
         if workflow not in allowed_workflows:
             raise HTTPException(status_code=400, detail=f"Invalid workflow definition. Allowed values are: {', '.join(allowed_workflows)}")
         parts = workflow.split("_")

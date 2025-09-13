@@ -79,6 +79,7 @@ class WorkflowExecutor:
             }
 
         except Exception as e:
+            log("Workflow Execution Error", {e})
             if isinstance(e, (InvalidWorkflowError, RAGPipelineError)):
                 raise
             raise WorkflowExecutionError(
@@ -183,16 +184,15 @@ class WorkflowExecutor:
             # Perform web search
             search_results = web_search_service_instance.search(
                 query=context["user_query"],
-                engine="google"
             )
             
             # Extract relevant information from search results
             web_context = []
-            for result in search_results[:3]:  # Limit to top 3 results
+            for result in search_results[:5]:  # Limit to top 5 results
                 title = result.get("title", "")
                 snippet = result.get("snippet", "")
                 link = result.get("link", "")
-                
+
                 if title and snippet:
                     web_context.append(f"Title: {title}\nContent: {snippet}\nSource: {link}")
                     context["sources"].append({
@@ -200,7 +200,7 @@ class WorkflowExecutor:
                         "source": link,
                         "title": title,
                     })
-            
+
             context["web_results"] = web_context
             context["execution_log"].append(f"Retrieved {len(web_context)} web search results")
 
@@ -231,41 +231,14 @@ class WorkflowExecutor:
             if context["web_results"]:
                 all_context.extend(context["web_results"])
 
-            # log("LLM with Context", f"Using context: {context}")
-            # Generate response using configured LLM service
-            if all_context:
                 # Use RAG pipeline with context
-                result = await llm_service_instance.run_rag_pipeline(
-                    user_query=context["user_query"],
-                    retrieved_context=all_context,
-                    conversation_history=context["conversation_history"],
-                )
-                context["final_response"] = result["response_text"]
-                context["execution_log"].append(f"Generated RAG response using {len(all_context)} context sources")
-            else:
-                # Direct LLM query without context
-                messages = []
-                
-                # Add conversation history if available
-                if context["conversation_history"]:
-                    for msg in context["conversation_history"]:
-                        messages.append({
-                            "role": msg["role"],
-                            "content": msg["content"]
-                        })
-                
-                # Add current query
-                messages.append({
-                    "role": "user", 
-                    "content": context["user_query"]
-                })
-                
-                result = await llm_service_instance.generate_chat_completion(
-                    messages
-                )
-                context["final_response"] = result["content"]
-                context["execution_log"].append("Generated direct LLM response (no context available)")
-
+            result = await llm_service_instance.run_rag_pipeline(
+                user_query=context["user_query"],
+                retrieved_context=all_context,
+                conversation_history=context["conversation_history"],
+            )
+            context["final_response"] = result["response_text"]
+            context["execution_log"].append(f"Generated RAG response using {len(all_context)} context sources")
             return context
 
         except Exception as e:
