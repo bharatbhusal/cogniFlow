@@ -291,13 +291,6 @@ async def query_project(
         # Save user query as a message
         user_message = {"project_id": project_id, "content": query, "role": "user"}
         
-        # log("User Message", user_message)
-
-        await MessageRepository.create(db, user_message)
-
-        # Execute workflow based on project's workflow definition
-        # workflow_def = project_config.get("workflow_definition")
-        # if workflow_def:
         try:
             log("Executing workflow", workflow_def)
 
@@ -308,10 +301,10 @@ async def query_project(
                 project_config=project_config,
                 conversation_history=conversation_history
             )
-            
+            await MessageRepository.create(db, user_message)
             assistant_response = workflow_result["response_text"]
             execution_log = workflow_result["execution_log"]
-            # sources = workflow_result["retrieved_sources"]
+            sources = workflow_result["retrieved_sources"]
             
             # log("Workflow execution successful", {
             #     "workflow": workflow_def,
@@ -347,6 +340,7 @@ async def query_project(
                 "conversation_history_included": len(conversation_history) > 0,
                 "workflow_used": workflow_def,
                 "execution_log": execution_log,
+                "sources": sources,
             },
         )
 

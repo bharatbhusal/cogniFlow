@@ -60,6 +60,11 @@ class WorkflowExecutor:
             # Execute workflow steps in order
             for step in workflow_parts:
                 if step == "kb":
+                    if not (project_config.get("chromadb_chunk_ids") and len(project_config.get("chromadb_chunk_ids")) > 0):
+                        raise InvalidWorkflowError(
+                            message="No documents found",
+                            details="Please add documents to the knowledge base or modify the workflow to exclude the knowledge base step"
+                        )
                     context = await self._execute_kb_step(context, configured_services)
                 elif step == "llm":
                     context = await self._execute_llm_step(context, configured_services)
@@ -126,13 +131,8 @@ class WorkflowExecutor:
         try:
             context["execution_log"].append("Executing Knowledge Base retrieval")
             
-            # log("Executing KB Step", f"Context before KB step: {context}")
             # Get configured KB service instance
             kb_service_instance = configured_services.get("knowledge_base_service")
-            
-            # log("KB Service Instance", f"KB Service: {kb_service_instance}")
-            if not kb_service_instance:
-                raise ValueError("Knowledge Base service not configured for this project")
             
             # Get document chunk IDs for the project
             chromadb_chunk_ids = configured_services.get("chromadb_chunk_ids", [])
@@ -150,7 +150,7 @@ class WorkflowExecutor:
                 context["sources"].extend([
                     {
                         "type": "knowledge_base",
-                        "source": chunk.get("source", "Unknown"),
+                        "source": chunk.get("text", "Unknown"),
                         "similarity": chunk.get("similarity", 0.0),
                     }
                     for chunk in relevant_chunks
@@ -158,13 +158,11 @@ class WorkflowExecutor:
                 
                 context["execution_log"].append(f"Retrieved {len(relevant_chunks)} relevant chunks from knowledge base")
             else:
-                context["execution_log"].append("No documents found in knowledge base")
                 raise ValueError("No documents found in knowledge base")
 
             return context
 
         except Exception as e:
-            log("Error in KB", e)
             raise RAGPipelineError(
                 message="Knowledge base step execution failed", details=str(e)
             )

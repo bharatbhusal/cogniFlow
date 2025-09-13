@@ -8,7 +8,6 @@ from app.utils.errors import (
     AIQuotaExceededError,
     PromptAugmentationError,
     RAGPipelineError,
-    ModelNotFoundError,
 )
 from app.utils.logger import log
 
@@ -25,11 +24,11 @@ class LLMService:
             
         self.api_key = api_key
         self.model = model
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.openai_client = AsyncOpenAI(api_key=api_key)
     
     async def validate_key_and_model(self) -> Dict[str, Any]:
         """Validate the API key and model asynchronously"""
-        return await self._validate_api_key() and self._is_llm_model(self.model)
+        return  self._is_llm_model(self.model) and  await self._validate_api_key()
 
     def _is_llm_model(self, model: str) -> bool:
         """
@@ -56,11 +55,14 @@ class LLMService:
             "text-davinci-003", "text-davinci-002", "davinci", "curie", "babbage", "ada"
         }
         
-        # Check exact matches first
         if model in text_models:
             return True
         else:
-            return False
+            raise OpenAIError(
+                message="Invalid text generation model",
+                details=f"Model '{model}' is not a recognized text generation model"
+            )
+
         
     async def _validate_api_key(self) -> Dict[str, Any]:
         """
@@ -79,22 +81,12 @@ class LLMService:
             ValueError: If model is not a text generation model
         """
         try:
-            return True if  await self.client.models.retrieve(self.model) else False
-                
-        except openai.RateLimitError:
-            # Rate limit hit during validation
-            raise OpenAIError(
-                message="Rate limit exceeded during validation",
-                details="OpenAI rate limit hit while validating API key and model"
-            )
-        except (ModelNotFoundError, OpenAIError, ValueError):
-            # Re-raise our custom exceptions
-            raise
+            return True if  await self.openai_client.models.retrieve(self.model) else False
         except Exception as e:
             # Unexpected error
             raise OpenAIError(
-                message="Unexpected error during API validation",
-                details=f"Error validating OpenAI API key and model: {str(e)}"
+                message="Invalid OpenAI API key",
+                details=f"Error validating OpenAI API key: {str(e)}"
             )
         
     def _supports_temperature(self, model: str) -> bool:
@@ -227,7 +219,7 @@ class LLMService:
             # Prepare parameters with conditional temperature support
             params = self._prepare_chat_completion_params(messages, temperature, **kwargs)
             
-            response = await self.client.chat.completions.create(**params)
+            response = await self.openai_client.chat.completions.create(**params)
             log("Response", str(response))
 
             return {
@@ -253,7 +245,7 @@ class LLMService:
                     params_no_temp = self._prepare_chat_completion_params(messages, temperature, **kwargs)
                     if "temperature" in params_no_temp:
                         del params_no_temp["temperature"]
-                    response = await self.client.chat.completions.create(**params_no_temp)
+                    response = await self.openai_client.chat.completions.create(**params_no_temp)
                     log("Response", "Successfully completed after removing temperature parameter")
                     return {
                         "content": response.choices[0].message.content,

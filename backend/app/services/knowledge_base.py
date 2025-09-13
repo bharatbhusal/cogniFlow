@@ -53,7 +53,7 @@ class KnowledgeBaseService:
 
     async def validate_api_key_and_model(self) -> Dict[str, Any]:
         """Validate the API key and model asynchronously"""
-        return await self._validate_api_key() and self._is_embedding_model(self.model)
+        return  self._is_embedding_model(self.model) and await self._validate_api_key()
 
     def _is_embedding_model(self, model: str) -> bool:
         """
@@ -72,18 +72,13 @@ class KnowledgeBaseService:
             "text-embedding-3-large", 
             "text-embedding-ada-002",
         }
-        
-        # Check exact matches first
         if model in embedding_models:
             return True
-
-            
-        # Check for partial matches (for future embedding models)
-        model_lower = model.lower()
-        if "embedding" in model_lower and not any(keyword in model_lower for keyword in ["gpt", "whisper", "dall-e", "moderation"]):
-            return True
-            
-        return False
+        else:
+            raise OpenAIError(
+                message="Invalid embedding model",
+                details=f"Model '{model}' is not a recognized embedding model"
+            )
         
     async def _validate_api_key(self) -> Dict[str, Any]:
         """
@@ -103,14 +98,11 @@ class KnowledgeBaseService:
         """
         try:
             return True if  await self.openai_client.models.retrieve(self.model) else False
-        except (ModelNotFoundError, OpenAIError, ValueError):
-            # Re-raise our custom exceptions
-            raise
         except Exception as e:
             # Unexpected error
             raise OpenAIError(
-                message="Unexpected error during API validation",
-                details=f"Error validating OpenAI API key and embedding model: {str(e)}"
+                message="Invalid OpenAI API key",
+                details=f"Error validating OpenAI API key: {str(e)}"
             )
         
     async def generate_embeddings(
