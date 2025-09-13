@@ -164,7 +164,7 @@ class WorkflowExecutor:
             return context
 
         except Exception as e:
-            # log("Error in KB", f"Error in _execute_kb_step: {e}")
+            log("Error in KB", e)
             raise RAGPipelineError(
                 message="Knowledge base step execution failed", details=str(e)
             )

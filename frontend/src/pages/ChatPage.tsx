@@ -9,13 +9,11 @@ import { toast } from "react-toastify";
 import { FaChevronCircleLeft } from "react-icons/fa";
 
 export const ChatPage: React.FC = () => {
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const {
     fetchOne,
     query,
-    update: updateProject,
     currentProject: project,
     setCurrent: setProject,
     loading,
@@ -24,7 +22,6 @@ export const ChatPage: React.FC = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -65,6 +62,7 @@ export const ChatPage: React.FC = () => {
     try {
       const result = await query(projectId!, { query: userMessage.content });
       if (result.meta.requestStatus === "rejected") {
+        console.log("Error querying project:", result);
         toast.error((result.payload as string) || "Failed to send message");
       }
     } catch (error) {
@@ -72,26 +70,6 @@ export const ChatPage: React.FC = () => {
       console.error("Error sending message:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleUpdateProject = async (data: {
-    name?: string;
-    description?: string;
-    pdf_files?: File[];
-    delete_documents?: string[];
-  }) => {
-    try {
-      const result = await updateProject(projectId!, data);
-      if (result.meta.requestStatus === "fulfilled") {
-        toast.success("Project updated successfully!");
-        setShowUpdateModal(false);
-      } else if (result.meta.requestStatus === "rejected") {
-        toast.error((result.payload as string) || "Failed to update project");
-      }
-    } catch (error) {
-      toast.error("Failed to update project");
-      console.error("Error updating project:", error);
     }
   };
 
@@ -159,48 +137,35 @@ export const ChatPage: React.FC = () => {
               </Card>
             </div>
 
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                Quick Actions
-              </h3>
-              <div className="space-y-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setShowUpdateModal(true)}
-                >
-                  Update Document
-                </Button>
-                {project.documents && project.documents.length > 0 && (
-                  <>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      What this Project Knows?
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {project.documents.map((doc, idx) => (
-                        <a
-                          key={idx}
-                          href={doc.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex text-sm items-center gap-1 px-2 py-1 bg-muted text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition w-full"
+            <div className="space-y-2">
+              {project.documents && project.documents.length > 0 && (
+                <>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    What this Project Knows?
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {project.documents.map((doc, idx) => (
+                      <a
+                        key={idx}
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex text-sm items-center gap-1 px-2 py-1 bg-muted text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition w-full"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          className="w-4 h-4 text-red-500"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                            className="w-4 h-4 text-red-500"
-                          >
-                            <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.828A2 2 0 0 0 19.414 7.414l-5.828-5.828A2 2 0 0 0 12.172 1H6zm6 1.414L18.586 8H14a2 2 0 0 1-2-2V3.414zM6 4h6v4a4 4 0 0 0 4 4h4v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zm2 10a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2z" />
-                          </svg>
-                          <span className="truncate w-full">{doc.title}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+                          <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.828A2 2 0 0 0 19.414 7.414l-5.828-5.828A2 2 0 0 0 12.172 1H6zm6 1.414L18.586 8H14a2 2 0 0 1-2-2V3.414zM6 4h6v4a4 4 0 0 0 4 4h4v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zm2 10a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2z" />
+                        </svg>
+                        <span className="truncate w-full">{doc.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </aside>

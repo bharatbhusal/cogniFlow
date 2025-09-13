@@ -57,24 +57,6 @@ async def create_project(
             web_search_node_config=web_search_node_config,
         )
 
-        # # Get ChromaDB chunk IDs for the project
-        # chromadb_chunk_ids = await DocumentRepository.get_project_chromadb_chunk_ids(db, result["project_id"])
-
-        # if not chromadb_chunk_ids:
-        #     return create_error_response(
-        #         message="No documents found in this project",
-        #         error_code="NO_DOCUMENTS_FOUND",
-        #         status_code=status.HTTP_404_NOT_FOUND
-        #     )
-        # llm_response = await llm_service.generate_chat_completion([{"role": "system", "content": "You are expert in summarizing the given chunks. Generate a meaningful summary/gist for the following chunks."},{"role": "user", "content": "Summarize this content please. Give me a paragraph with the gist followed by important points in bullet format."}])
-        # # Save assistant response as a message
-        # assistant_message  = {
-        #     "project_id": result["project_id"],
-        #     "content": llm_response["content"],
-        #     "role": "assistant"
-        # }
-        # await MessageRepository.create(db, assistant_message)
-
         return create_success_response(
             message="Project created successfully",
             data=result,
@@ -314,78 +296,34 @@ async def query_project(
         await MessageRepository.create(db, user_message)
 
         # Execute workflow based on project's workflow definition
-        workflow_def = project_config.get("workflow_definition")
-        if workflow_def:
-            try:
-                log("Executing workflow", workflow_def)
+        # workflow_def = project_config.get("workflow_definition")
+        # if workflow_def:
+        try:
+            log("Executing workflow", workflow_def)
 
-                # Execute the workflow using the workflow executor
-                workflow_result = await workflow_executor.execute_workflow(
-                    user_query=query,
-                    workflow_definition=workflow_def,
-                    project_config=project_config,
-                    conversation_history=conversation_history
-                )
-                
-                assistant_response = workflow_result["response_text"]
-                execution_log = workflow_result["execution_log"]
-                sources = workflow_result["retrieved_sources"]
-                
-                log("Workflow execution successful", {
-                    "workflow": workflow_def,
-                    "execution_log": execution_log,
-                    "sources_count": len(sources),
-                    "response_length": len(assistant_response)
-                })
-                
-            except Exception as workflow_error:
-                log("Workflow execution failed", {
-                    "workflow": workflow_def,
-                    "error": str(workflow_error),
-                    "error_type": type(workflow_error).__name__
-                })
-                assistant_response = f"I encountered an error while processing your request using the {workflow_def} workflow. Please try again or contact support if the issue persists."
-        else:
-            log("No workflow defined - using fallback RAG pipeline")
-            # Fallback: No workflow defined
-            chromadb_chunk_ids = project_config.get("chromadb_chunk_ids", [])
-            if chromadb_chunk_ids:
-                # Get API keys from project config for fallback
-                kb_config = project_config.get("knowledge_base_node", {})
-                llm_config = project_config.get("llm_node", {})
-                
-                kb_api_key = kb_config.get("openai_api_key")
-                embedding_model = kb_config.get("embedding_model_name")
-                llm_api_key = llm_config.get("openai_api_key")
-                llm_model = llm_config.get("llm_model_name")
-                
-                # Create service instances with user-provided credentials
-                if not (kb_api_key and embedding_model):
-                    return create_error_response("Knowledge Base service not configured with API key and model", 400)
-                if not (llm_api_key and llm_model):
-                    return create_error_response("LLM service not configured with API key and model", 400)
-                
-                kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model)
-                llm_service_instance = LLMService(api_key=llm_api_key, model=llm_model)
-                
-                # Use simple RAG pipeline as fallback
-                context_chunks = await kb_service_instance.retrieve_relevant_context_by_ids(
-                    query=query, 
-                    chromadb_chunk_ids=chromadb_chunk_ids,
-                )
-                retrieved_context = [each["text"] for each in context_chunks]
-
-                llm_response = await llm_service_instance.run_rag_pipeline(
-                    user_query=query,
-                    retrieved_context=retrieved_context,
-                    conversation_history=conversation_history,
-                )
-                assistant_response = llm_response["response_text"]
-                log("Fallback RAG pipeline executed successfully")
-            else:
-                assistant_response = "I'm sorry, I don't have any documents in this project to answer your question. Please add some documents and configure a workflow to get started."
-                log("No documents or workflow available")
-
+            # Execute the workflow using the workflow executor
+            workflow_result = await workflow_executor.execute_workflow(
+                user_query=query,
+                workflow_definition=workflow_def,
+                project_config=project_config,
+                conversation_history=conversation_history
+            )
+            
+            assistant_response = workflow_result["response_text"]
+            execution_log = workflow_result["execution_log"]
+            # sources = workflow_result["retrieved_sources"]
+            
+            # log("Workflow execution successful", {
+            #     "workflow": workflow_def,
+            #     "execution_log": execution_log,
+            #     "sources_count": len(sources),
+            #     "response_length": len(assistant_response)
+            # })
+            
+        except Exception as workflow_error:
+            log("Workflow", workflow_error)
+            raise workflow_error
+           
         # Save assistant response as a message
         assistant_message = {
             "project_id": project_id,
@@ -408,6 +346,7 @@ async def query_project(
                 },
                 "conversation_history_included": len(conversation_history) > 0,
                 "workflow_used": workflow_def,
+                "execution_log": execution_log,
             },
         )
 
