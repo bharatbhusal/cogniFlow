@@ -126,7 +126,6 @@ export interface ProjectListResponse {
 // Loading and Error States
 export interface AsyncState {
   loading: boolean;
-  error: string | null;
 }
 
 export interface AuthState extends AsyncState {
