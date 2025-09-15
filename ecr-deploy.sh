@@ -57,7 +57,7 @@ docker pull $FRONTEND_ECR_REPO
 
 # Stop current containers
 print_status "Stopping current containers..."
-docker-compose -f docker-compose.prod.yml down
+docker-compose  down
 
 # Clean up old images
 print_status "Cleaning up old images..."
@@ -69,7 +69,7 @@ export FRONTEND_IMAGE=$FRONTEND_ECR_REPO
 
 # Start containers with new images
 print_status "Starting containers with updated images..."
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose  up -d
 
 # Wait for services to be ready
 print_status "Waiting for services to be ready..."
@@ -77,7 +77,7 @@ sleep 30
 
 # Verify deployment
 print_status "Verifying deployment..."
-docker-compose -f docker-compose.prod.yml ps
+docker-compose  ps
 
 # Health checks
 print_status "Running health checks..."
@@ -96,8 +96,8 @@ fi
 print_success "🎉 ECR deployment update completed!"
 echo ""
 echo "📊 Container Status:"
-docker-compose -f docker-compose.prod.yml ps
+docker-compose  ps
 
 echo ""
 echo "📝 View logs with:"
-echo "docker-compose -f docker-compose.prod.yml logs -f"
+echo "docker-compose  logs -f"

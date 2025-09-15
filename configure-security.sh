@@ -123,7 +123,7 @@ echo "=================================="
 
 # Check Docker containers
 echo "📦 Container Status:"
-docker-compose -f docker-compose.prod.yml ps
+docker-compose  ps
 
 # Check disk usage
 echo ""
@@ -174,7 +174,7 @@ fi
 
 echo ""
 echo "📊 Recent Logs (last 10 lines):"
-docker-compose -f docker-compose.prod.yml logs --tail=10
+docker-compose  logs --tail=10
 
 echo ""
 echo "🔚 Health check completed at $(date)"
@@ -253,11 +253,11 @@ git pull origin main
 
 # Rebuild containers
 echo "🏗️ Rebuilding containers..."
-docker-compose -f docker-compose.prod.yml build --no-cache
+docker-compose  build --no-cache
 
 # Update containers
 echo "🚀 Updating containers..."
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose  up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to be ready..."
@@ -282,7 +282,7 @@ cat > renew-ssl.sh << 'EOF'
 echo "🔐 Starting SSL certificate renewal at $(date)"
 
 # Stop nginx to allow certbot to bind to port 80
-docker-compose -f docker-compose.prod.yml stop nginx
+docker-compose  stop nginx
 
 # Renew certificates
 certbot renew --standalone --quiet
@@ -299,7 +299,7 @@ else
 fi
 
 # Restart nginx
-docker-compose -f docker-compose.prod.yml up -d nginx
+docker-compose  up -d nginx
 
 # Verify SSL
 sleep 10

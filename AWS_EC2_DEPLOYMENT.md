@@ -109,7 +109,7 @@ export BACKEND_IMAGE="your-account.dkr.ecr.ap-south-1.amazonaws.com/cogniflow-ba
 export FRONTEND_IMAGE="your-account.dkr.ecr.ap-south-1.amazonaws.com/cogniflow-frontend:latest"
 
 # Deploy with ECR images
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose  up -d
 ```
 
 ## Step 4: Environment Configuration
@@ -198,7 +198,7 @@ The quick-deploy script automatically handles SSL certificate generation for bot
 
 ```bash
 # Stop nginx container temporarily
-docker-compose -f docker-compose.prod.yml stop nginx
+docker-compose  stop nginx
 
 # Generate SSL certificates for both domains
 sudo certbot certonly --standalone -d cogniflow.bharatbhusal.com --email your-email@domain.com --agree-tos --non-interactive
@@ -220,7 +220,7 @@ sudo cp /etc/letsencrypt/live/backend-cogniFlow.bharatbhusal.com/privkey.pem ngi
 sudo chown -R $USER:$USER nginx/ssl/
 
 # Restart nginx
-docker-compose -f docker-compose.prod.yml up -d nginx
+docker-compose  up -d nginx
 ```
 
 ### 8.2 Certificate Auto-Renewal
@@ -290,12 +290,12 @@ sudo crontab -l  # Verify renewal schedule
 
 ```bash
 # View all service logs
-docker-compose -f docker-compose.prod.yml logs
+docker-compose  logs
 
 # View specific service logs
-docker-compose -f docker-compose.prod.yml logs backend
-docker-compose -f docker-compose.prod.yml logs frontend
-docker-compose -f docker-compose.prod.yml logs nginx
+docker-compose  logs backend
+docker-compose  logs frontend
+docker-compose  logs nginx
 ```
 
 ### 8.2 Health Checks
@@ -367,10 +367,10 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 
    ```bash
    # Restart all services
-   docker-compose -f docker-compose.prod.yml restart
+   docker-compose  restart
 
    # Check container status
-   docker-compose -f docker-compose.prod.yml ps
+   docker-compose  ps
    ```
 
 ## Architecture Overview
@@ -389,7 +389,7 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 1. **Containers not starting**
 
    ```bash
-   docker-compose -f docker-compose.prod.yml logs
+   docker-compose  logs
    ```
 
 2. **Permission denied errors**
@@ -413,12 +413,12 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 
 ```bash
 # Restart all services
-docker-compose -f docker-compose.prod.yml restart
+docker-compose  restart
 
 # Update application
 git pull origin main
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose  build
+docker-compose  up -d
 
 # View resource usage
 docker stats

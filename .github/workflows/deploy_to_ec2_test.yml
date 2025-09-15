@@ -100,7 +100,7 @@ jobs:
         cd /home/ec2-user/app
 
         echo 'Stopping existing containers...'
-        docker-compose -f docker-compose.prod.yml down
+        docker-compose  down
         
         echo 'Backing up database before migration (optional)...'
         docker-compose run --rm postgres pg_dump -U postgres -d cogniflow > backup_\$(date +%Y%m%d_%H%M%S).sql 2>/dev/null || echo 'Backup skipped'

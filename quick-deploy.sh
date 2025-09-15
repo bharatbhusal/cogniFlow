@@ -117,7 +117,7 @@ docker pull $FRONTEND_IMAGE
 
 # Step 6: Start the application
 print_status "Step 6/7: Starting application..."
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose  up -d
 
 # Wait for services to start
 print_status "Waiting for services to initialize..."
@@ -127,7 +127,7 @@ sleep 30
 print_status "Step 7/7: Setting up SSL certificates..."
 
 # Stop nginx temporarily
-docker-compose -f docker-compose.prod.yml stop nginx
+docker-compose  stop nginx
 
 # Generate SSL certificates for both domains
 if command -v certbot &> /dev/null; then
@@ -153,7 +153,7 @@ if command -v certbot &> /dev/null; then
     sudo chown -R $USER:$USER nginx/ssl/
     
     # Start nginx with SSL
-    docker-compose -f docker-compose.prod.yml up -d nginx
+    docker-compose  up -d nginx
     
     print_success "SSL certificates configured successfully for both domains"
 else
@@ -201,9 +201,9 @@ echo "🔧 Useful commands:"
 echo "- Monitor: ./monitor-cogniflow.sh"
 echo "- Backup: ./backup-cogniflow.sh"
 echo "- Update: ./update-cogniflow.sh"
-echo "- Logs: docker-compose -f docker-compose.prod.yml logs -f"
-echo "- Stop: docker-compose -f docker-compose.prod.yml down"
-echo "- Start: BACKEND_IMAGE=$BACKEND_IMAGE FRONTEND_IMAGE=$FRONTEND_IMAGE docker-compose -f docker-compose.prod.yml up -d"
+echo "- Logs: docker-compose  logs -f"
+echo "- Stop: docker-compose  down"
+echo "- Start: BACKEND_IMAGE=$BACKEND_IMAGE FRONTEND_IMAGE=$FRONTEND_IMAGE docker-compose  up -d"
 echo "- Renew SSL: ./renew-ssl.sh"
 
 echo ""
@@ -252,9 +252,9 @@ echo "🔧 Useful commands:"
 echo "- Monitor: ./monitor-cogniflow.sh"
 echo "- Backup: ./backup-cogniflow.sh"
 echo "- Update: ./update-cogniflow.sh"
-echo "- Logs: docker-compose -f docker-compose.prod.yml logs -f"
-echo "- Stop: docker-compose -f docker-compose.prod.yml down"
-echo "- Start: docker-compose -f docker-compose.prod.yml up -d"
+echo "- Logs: docker-compose  logs -f"
+echo "- Stop: docker-compose  down"
+echo "- Start: docker-compose  up -d"
 
 if [[ "$DOMAIN_NAME" != "localhost" ]]; then
     echo "- Renew SSL: ./renew-ssl.sh"

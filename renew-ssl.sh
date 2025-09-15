@@ -8,7 +8,7 @@ FRONTEND_DOMAIN="cogniflow.bharatbhusal.com"
 BACKEND_DOMAIN="backend-cogniFlow.bharatbhusal.com"
 
 # Stop nginx to allow certbot to bind to port 80
-docker-compose -f docker-compose.prod.yml stop nginx
+docker-compose  stop nginx
 
 # Renew certificates for both domains
 echo "🔄 Renewing SSL certificate for frontend domain: $FRONTEND_DOMAIN"
@@ -44,7 +44,7 @@ fi
 chown -R $USER:$USER nginx/ssl/
 
 # Restart nginx
-docker-compose -f docker-compose.prod.yml up -d nginx
+docker-compose  up -d nginx
 
 # Verify SSL for both domains
 sleep 10
