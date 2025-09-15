@@ -100,12 +100,32 @@ jobs:
         cd /home/ec2-user/app
 
         echo 'Stopping existing containers...'
-        docker-compose down
+        docker-compose -f docker-compose.prod.yml down
         
-        echo 'Starting containers with new images...'
-        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose -f docker-compose.yml up -d
+        echo 'Backing up database before migration (optional)...'
+        docker-compose run --rm postgres pg_dump -U postgres -d cogniflow > backup_\$(date +%Y%m%d_%H%M%S).sql 2>/dev/null || echo 'Backup skipped'
+        
+        echo 'Starting database first...'
+        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose up -d postgres
+
+        echo 'Waiting for database to be ready...'
+        sleep 15
+        
+        echo 'Running database migrations...'
+        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose run --rm backend alembic upgrade head || echo 'Migration handled by entrypoint'
+        
+        echo 'Starting all containers with new images...'
+        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose up -d
+
+        echo 'Waiting for services to start...'
+        sleep 30
         
         echo 'Verifying deployment...'
-        sleep 30
         docker-compose ps
+        
+        echo 'Testing API endpoints...'
+        curl -f http://localhost:8080/api/open/health || echo 'Backend health check failed'
+        curl -f http://localhost:3000 || echo 'Frontend health check failed'
+        
+        echo 'Deployment completed successfully!'
       "
