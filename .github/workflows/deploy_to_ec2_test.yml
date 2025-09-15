@@ -102,9 +102,6 @@ jobs:
         echo 'Stopping existing containers...'
         docker-compose  down
         
-        echo 'Backing up database before migration (optional)...'
-        docker-compose run --rm postgres pg_dump -U postgres -d cogniflow > backup_\$(date +%Y%m%d_%H%M%S).sql 2>/dev/null || echo 'Backup skipped'
-        
         echo 'Starting database first...'
         BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose up -d postgres
 
