@@ -96,13 +96,16 @@ jobs:
         docker pull \$BACKEND_IMAGE
         docker pull \$FRONTEND_IMAGE
         
+        echo 'Navigating to deployment directory...'
+        cd /home/ec2-user/app
+
         echo 'Stopping existing containers...'
-        docker-compose -f docker-compose.yml down
+        docker-compose down
         
         echo 'Starting containers with new images...'
         BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose -f docker-compose.yml up -d
         
         echo 'Verifying deployment...'
         sleep 30
-        docker-compose -f docker-compose.yml ps
+        docker-compose ps
       "
