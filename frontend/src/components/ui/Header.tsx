@@ -25,7 +25,7 @@ export const Header: React.FC = () => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shadow-md">
       <div className="flex items-center gap-3">
-        <span className="text-2xl font-bold text-slate-100">Projects</span>
+        <span className="text-2xl font-bold text-slate-100">CogniFlow</span>
       </div>
       <div className="flex items-center gap-2">
         {user ? (
