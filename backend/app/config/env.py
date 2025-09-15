@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Application Settings 
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000", 
+        "http://localhost:5173", 
         "http://localhost:8000",
         "https://cogniflow.bharatbhusal.com",
         "https://backend-cogniflow.bharatbhusal.com"
