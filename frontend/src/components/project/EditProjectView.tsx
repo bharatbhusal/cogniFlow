@@ -251,7 +251,7 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 
 			return { nodes: newNodes, edges: newEdges };
 		},
-		[pdfFiles, pdfFilesToSave]
+		[]
 	);
 
 	const calculateWorkflowFromConnectedNodes = useCallback(
@@ -330,14 +330,6 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 			}
 
 			const workflow = workflowParts.join("_");
-			console.log(
-				"Calculated workflow from connected nodes:",
-				workflow,
-				"Connected path:",
-				connectedPath.map(
-					(id) => currentNodes.find((n) => n.id === id)?.type
-				)
-			);
 			return workflow;
 		},
 		[]
@@ -462,10 +454,6 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 					updatedConfig.web_search_node = webNode.data;
 				}
 
-				console.log(
-					"Updated project config with connected nodes:",
-					updatedConfig
-				);
 				return updatedConfig;
 			});
 		},
@@ -726,10 +714,6 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 						};
 					}
 
-					console.log(
-						"ProjectConfig updated for connected node:",
-						updatedConfig
-					);
 					return updatedConfig;
 				});
 

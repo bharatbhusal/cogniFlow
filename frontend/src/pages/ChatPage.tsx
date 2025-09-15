@@ -43,7 +43,6 @@ export const ChatPage: React.FC = () => {
 				})
 				.catch((error) => {
 					toast.error("Failed to load project");
-					console.error("Error fetching project:", error);
 				});
 		}
 	}, [projectId]);
@@ -85,14 +84,12 @@ export const ChatPage: React.FC = () => {
 				query: userMessage.content,
 			});
 			if (result.meta.requestStatus === "rejected") {
-				console.log("Error querying project:", result);
 				toast.error(
 					(result.payload as string) || "Failed to send message"
 				);
 			}
 		} catch (error) {
 			toast.error("Failed to send message");
-			console.error("Error sending message:", error);
 		} finally {
 			setIsLoading(false);
 		}

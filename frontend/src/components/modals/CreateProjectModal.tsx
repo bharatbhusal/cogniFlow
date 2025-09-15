@@ -10,84 +10,95 @@ import { useProjects } from "../../redux";
 import { toast } from "react-toastify";
 
 interface CreateProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+	isOpen: boolean;
+	onClose: () => void;
 }
 
-export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
-  isOpen,
-  onClose,
-}) => {
-  const navigate = useNavigate();
-  const { create, loading } = useProjects();
+export const CreateProjectModal: React.FC<
+	CreateProjectModalProps
+> = ({ isOpen, onClose }) => {
+	const navigate = useNavigate();
+	const { create, loading } = useProjects();
 
-  const [projectData, setProjectData] = useState({
-    name: "",
-    description: "",
-  });
+	const [projectData, setProjectData] = useState({
+		name: "",
+		description: "",
+	});
 
-  const handleInputChange = useCallback((field: string, value: string) => {
-    setProjectData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  }, []);
+	const handleInputChange = useCallback(
+		(field: string, value: string) => {
+			setProjectData((prev) => ({
+				...prev,
+				[field]: value,
+			}));
+		},
+		[]
+	);
 
-  const handleCreateProject = useCallback(
-    async (e: any) => {
-      e.preventDefault();
-      if (!projectData.name.trim()) {
-        toast.error("Project name is required");
-        return;
-      }
+	const handleCreateProject = useCallback(
+		async (e: any) => {
+			e.preventDefault();
+			if (!projectData.name.trim()) {
+				toast.error("Project name is required");
+				return;
+			}
 
-      try {
-        const result = await create(projectData);
-        if (result.meta.requestStatus === "fulfilled") {
-          const project = result.payload as any;
-          if (project?.id) {
-            toast.success("Project created successfully!");
-            onClose();
-            // navigate(`/projects/${project.id}?editable=true`);
-          }
-        } else if (result.meta.requestStatus === "rejected") {
-          toast.error((result.payload as string) || "Failed to create project");
-        }
-      } catch (error) {
-        toast.error("Failed to create project");
-        console.error("Error creating project:", error);
-      }
-    },
-    [projectData, create, navigate, onClose]
-  );
+			try {
+				const result = await create(projectData);
+				if (result.meta.requestStatus === "fulfilled") {
+					const project = result.payload as any;
+					if (project?.id) {
+						toast.success("Project created successfully!");
+						onClose();
+						// navigate(`/projects/${project.id}?editable=true`);
+					}
+				} else if (result.meta.requestStatus === "rejected") {
+					toast.error(
+						(result.payload as string) ||
+							"Failed to create project"
+					);
+				}
+			} catch (error) {
+				toast.error("Failed to create project");
+			}
+		},
+		[projectData, create, navigate, onClose]
+	);
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <CardHeader>Create New Project</CardHeader>
-      <form onSubmit={handleCreateProject} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Project Name</Label>
-          <Input
-            id="name"
-            name="name"
-            required
-            value={projectData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder="Enter project name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            value={projectData.description}
-            onChange={(e) => handleInputChange("description", e.target.value)}
-            placeholder="Enter project description (optional)"
-            rows={3}
-          />
-        </div>
-        {/* <div className="space-y-2">
+	return (
+		<Modal isOpen={isOpen} onClose={onClose}>
+			<CardHeader>Create New Project</CardHeader>
+			<form
+				onSubmit={handleCreateProject}
+				className="space-y-4"
+			>
+				<div className="space-y-2">
+					<Label htmlFor="name">Project Name</Label>
+					<Input
+						id="name"
+						name="name"
+						required
+						value={projectData.name}
+						onChange={(e) =>
+							handleInputChange("name", e.target.value)
+						}
+						placeholder="Enter project name"
+					/>
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="description">Description</Label>
+					<Textarea
+						id="description"
+						name="description"
+						value={projectData.description}
+						onChange={(e) =>
+							handleInputChange("description", e.target.value)
+						}
+						placeholder="Enter project description (optional)"
+						rows={3}
+					/>
+				</div>
+				{/* <div className="space-y-2">
           <Label htmlFor="files">PDF Files (max 5)</Label>
           <Input
             id="files"
@@ -118,15 +129,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             ))}
           </div>
         </div> */}
-        <div className="flex gap-2">
-          <Button type="submit" disabled={loading}>
-            {loading ? "Creating..." : "Create Project"}
-          </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
+				<div className="flex gap-2">
+					<Button type="submit" disabled={loading}>
+						{loading ? "Creating..." : "Create Project"}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={onClose}
+					>
+						Cancel
+					</Button>
+				</div>
+			</form>
+		</Modal>
+	);
 };
