@@ -87,15 +87,6 @@ else
     print_success "Docker Compose is already installed"
 fi
 
-# Install Git if not present
-print_status "Checking Git installation..."
-if ! command -v git &> /dev/null; then
-    sudo yum install -y git
-    print_success "Git installed successfully"
-else
-    print_success "Git is already installed"
-fi
-
 # Install other useful tools
 print_status "Installing additional tools..."
 sudo yum install -y htop nginx
