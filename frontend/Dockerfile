@@ -12,4 +12,5 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+# Serve built files using Vite preview (production-like server)
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
