@@ -77,14 +77,6 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
     description: "",
   });
 
-  // Debug: Track pdfFilesToSave changes
-  useEffect(() => {
-    console.log(
-      "🔄 pdfFilesToSave state changed:",
-      pdfFilesToSave.map((f) => f.name)
-    );
-  }, [pdfFilesToSave]);
-
   const getCurrentNodeDataFromCanvas = useCallback((currentNodes: Node[]) => {
     const nodeData: { [key: string]: any } = {};
 
@@ -389,12 +381,7 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({ projectId }) => {
   );
 
   const onFileUpload = useCallback((node_id: string, file: File) => {
-    console.log("🔄 onFileUpload called:", file.name);
     setPdfFilesToSave((prev) => {
-      console.log(
-        "📁 Adding file to pdfFilesToSave:",
-        [...prev, file].map((f) => f.name)
-      );
       return [...prev, file];
     });
 

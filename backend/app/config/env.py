@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     CHROMADB_DATABASE: str = os.getenv("CHROMADB_DATABASE")
 
     # Application Settings (hardcoded)
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 

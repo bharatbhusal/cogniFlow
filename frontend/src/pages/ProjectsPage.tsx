@@ -112,7 +112,11 @@ export const ProjectsPage: React.FC = () => {
               {projects.map((project) => (
                 <Card
                   key={project.id}
-                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between"
+                  className="bg-gradient-to-br from-slate-800 via-slate-900 to-gray-900 text-slate-100 shadow-xl rounded-2xl border border-slate-700 flex flex-col justify-between hover:border-gray-400 cursor-pointer duration-200 ease-in-out"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/projects/${project.id}?editable=false`);
+                  }}
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-2xl font-bold text-slate-100 mb-1">
@@ -194,18 +198,6 @@ export const ProjectsPage: React.FC = () => {
                         <FaEdit />
                       )}
                       Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/projects/${project.id}?editable=false`);
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <LuView />
-                      View
                     </Button>
 
                     <Button

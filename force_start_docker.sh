@@ -7,4 +7,4 @@ docker compose down
 docker compose build
 
 # Start the containers (without auto-starting dependencies)
-docker compose up postgres backend --no-deps
+docker compose up postgres backend frontend

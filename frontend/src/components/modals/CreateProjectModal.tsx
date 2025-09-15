@@ -48,7 +48,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           if (project?.id) {
             toast.success("Project created successfully!");
             onClose();
-            navigate(`/projects/${project.id}?editable=true`);
+            // navigate(`/projects/${project.id}?editable=true`);
           }
         } else if (result.meta.requestStatus === "rejected") {
           toast.error((result.payload as string) || "Failed to create project");

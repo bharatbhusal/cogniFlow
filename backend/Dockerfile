@@ -1,31 +1,26 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Install only system deps you actually need
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    libssl-dev \
     libffi-dev \
-    python3-dev \
-    git \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements first for caching
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy app code
 COPY . .
 
-# Make entrypoint script executable
+# Entrypoint
 RUN chmod +x ./entrypoint.sh
-
-# Set the entrypoint
 ENTRYPOINT ["./entrypoint.sh"]
 
 EXPOSE 8080
 
-# Default command (can be overridden)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
