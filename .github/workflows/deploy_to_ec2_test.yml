@@ -49,22 +49,6 @@ jobs:
       # Push the Backend Docker image tagged as 'latest'
       docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:latest
 
-   # Step 6: Build, tag, and push the Frontend Docker image to Amazon ECR
-   - name: Build, Tag, and Push Frontend Docker Image to ECR
-     run: |
-      echo "Building React Frontend Docker image with the latest commit hash tag and 'latest' tag..."
-
-      # Build the Frontend Docker image from the frontend directory
-      docker buildx build --platform linux/amd64 -f frontend/Dockerfile -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:${{ steps.get-commit-hash.outputs.commit-hash }} -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:latest frontend/
-
-      echo "Pushing Frontend Docker image with the commit hash and latest tag to ECR..."
-
-      # Push the Frontend Docker image tagged with the commit hash
-      docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:${{ steps.get-commit-hash.outputs.commit-hash }}
-
-      # Push the Frontend Docker image tagged as 'latest'
-      docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:latest
-
    # Step 7: Setup SSH key for secure connection to EC2
    - name: Setup SSH Key
      run: |
@@ -87,42 +71,39 @@ jobs:
         
         echo 'Updating environment variables...'
         export BACKEND_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:latest
-        export FRONTEND_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:latest
         
         echo 'Cleaning up old Docker images...'
         docker system prune -af;
         
         echo 'Pulling the latest Docker images...'
         docker pull \$BACKEND_IMAGE
-        docker pull \$FRONTEND_IMAGE
         
         echo 'Navigating to deployment directory...'
-        cd /home/ec2-user/app
+        cd /home/ec2-user/
 
         echo 'Stopping existing containers...'
         docker-compose  down
         
         echo 'Starting database first...'
-        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose up -d postgres
+        BACKEND_IMAGE=\$BACKEND_IMAGE docker-compose up -d postgres
 
         echo 'Waiting for database to be ready...'
         sleep 15
         
         echo 'Running database migrations...'
-        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose run --rm backend alembic upgrade head || echo 'Migration handled by entrypoint'
+        BACKEND_IMAGE=\$BACKEND_IMAGE docker-compose run --rm backend alembic upgrade head || echo 'Migration handled by entrypoint'
         
         echo 'Starting all containers with new images...'
-        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose up -d
+        BACKEND_IMAGE=\$BACKEND_IMAGE docker-compose up -d
 
         echo 'Waiting for services to start...'
-        sleep 30
+        sleep 10
         
         echo 'Verifying deployment...'
         docker-compose ps
         
         echo 'Testing API endpoints...'
         curl -f http://localhost:8080/api/open/health || echo 'Backend health check failed'
-        curl -f http://localhost:3000 || echo 'Frontend health check failed'
         
         echo 'Deployment completed successfully!'
       "
