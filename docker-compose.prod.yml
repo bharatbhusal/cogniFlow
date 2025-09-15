@@ -1,0 +1,90 @@
+# Production Docker Compose Configuration for AWS EC2
+# This file is optimized for production deployment
+
+services:
+ backend:
+  image: ${BACKEND_IMAGE}
+  container_name: cogniFlow-backend
+  env_file:
+   - backend/.env
+  ports:
+   - "8080:8080"
+  depends_on:
+   - postgres
+  restart: unless-stopped
+  volumes:
+   - backend_uploads:/app/uploads
+   - backend_logs:/app/logs
+  networks:
+   - cogniflow-network
+  healthcheck:
+   test:
+    [
+     "CMD",
+     "curl",
+     "-f",
+     "http://localhost:8080/api/open/health",
+    ]
+   interval: 30s
+   timeout: 10s
+   retries: 3
+
+ frontend:
+  image: ${FRONTEND_IMAGE}
+  container_name: cogniFlow-frontend
+  env_file:
+   - frontend/.env
+  ports:
+   - "3000:5173"
+  restart: unless-stopped
+  networks:
+   - cogniflow-network
+  depends_on:
+   - backend
+
+ postgres:
+  image: postgres:15
+  container_name: cogniFlow-postgres
+  environment:
+   POSTGRES_USER: postgres
+   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+   POSTGRES_DB: cogniflow
+  ports:
+   - "5432:5432"
+  volumes:
+   - postgres_data:/var/lib/postgresql/data
+   - ./backend/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+  restart: unless-stopped
+  networks:
+   - cogniflow-network
+  healthcheck:
+   test: ["CMD-SHELL", "pg_isready -U postgres"]
+   interval: 10s
+   timeout: 5s
+   retries: 5
+
+ nginx:
+  image: nginx:alpine
+  container_name: cogniFlow-nginx
+  ports:
+   - "80:80"
+   - "443:443"
+  volumes:
+   - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+   - ./nginx/ssl:/etc/nginx/ssl:ro
+   - ./nginx/logs:/var/log/nginx
+  depends_on:
+   - frontend
+   - backend
+  restart: unless-stopped
+  networks:
+   - cogniflow-network
+
+volumes:
+ postgres_data:
+ backend_uploads:
+ backend_logs:
+
+networks:
+ cogniflow-network:
+  driver: bridge

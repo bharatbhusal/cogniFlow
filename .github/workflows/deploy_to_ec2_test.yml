@@ -1,77 +1,108 @@
-name: Host cogniFlow FastAPI server on EC2 using image in ECR for prod environment
+name: Host cogniFlow Frontend and Backend on EC2 using ECR for prod environment
 
 on:
-  push:
-    branches:
-      - prod
+ push:
+  branches:
+   - prod
 
 jobs:
-  Build:
-    name: Build and Deploy
-    runs-on: ubuntu-latest
+ Build:
+  name: Build and Deploy
+  runs-on: ubuntu-latest
 
-    steps:
-      # Step 1: Checkout code from the repository
-      - name: Checkout
-        uses: actions/checkout@v2
+  steps:
+   # Step 1: Checkout code from the repository
+   - name: Checkout
+     uses: actions/checkout@v2
 
-      # Step 2: Configure AWS credentials for access to ECR
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+   # Step 2: Configure AWS credentials for access to ECR
+   - name: Configure AWS credentials
+     uses: aws-actions/configure-aws-credentials@v1
+     with:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ap-south-1
 
-      # Step 3: Log in to Amazon ECR (Elastic Container Registry)
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+   # Step 3: Log in to Amazon ECR (Elastic Container Registry)
+   - name: Login to Amazon ECR
+     id: login-ecr
+     uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 4: Get the current commit hash to tag the Docker image
-      - name: Get commit hash
-        id: get-commit-hash
-        run: echo "::set-output name=commit-hash::$(git rev-parse --short HEAD)"
+   # Step 4: Get the current commit hash to tag the Docker image
+   - name: Get commit hash
+     id: get-commit-hash
+     run: echo "::set-output name=commit-hash::$(git rev-parse --short HEAD)"
 
-      # Step 5: Build, tag, and push the Docker image to Amazon ECR
-      - name: Build, Tag, and Push Docker Image to ECR
-        run: |
-          echo "Building FastAPI Docker image with the latest commit hash tag and 'latest' tag..."
+   # Step 5: Build, tag, and push the Backend Docker image to Amazon ECR
+   - name: Build, Tag, and Push Backend Docker Image to ECR
+     run: |
+      echo "Building FastAPI Backend Docker image with the latest commit hash tag and 'latest' tag..."
 
-          # Build the Docker image from the backend directory
-          docker buildx build --platform linux/amd64 -f backend/Dockerfile -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}:${{ steps.get-commit-hash.outputs.commit-hash }} -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}:latest backend/
+      # Build the Backend Docker image from the backend directory
+      docker buildx build --platform linux/amd64 -f backend/Dockerfile -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:${{ steps.get-commit-hash.outputs.commit-hash }} -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:latest backend/
 
-          echo "Pushing Docker image with the commit hash and latest tag to ECR..."
+      echo "Pushing Backend Docker image with the commit hash and latest tag to ECR..."
 
-          # Push the Docker image tagged with the commit hash
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}:${{ steps.get-commit-hash.outputs.commit-hash }}
+      # Push the Backend Docker image tagged with the commit hash
+      docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:${{ steps.get-commit-hash.outputs.commit-hash }}
 
-          # Push the Docker image tagged as 'latest'
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}:latest
+      # Push the Backend Docker image tagged as 'latest'
+      docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:latest
 
-      # Step 6: Setup SSH key for secure connection to EC2
-      - name: Setup SSH Key
-        run: |
-          echo "Setting up SSH key for EC2..."
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.AWS_EC2_IP_TEST }} >> ~/.ssh/known_hosts
-          echo "SSH key setup completed."
+   # Step 6: Build, tag, and push the Frontend Docker image to Amazon ECR
+   - name: Build, Tag, and Push Frontend Docker Image to ECR
+     run: |
+      echo "Building React Frontend Docker image with the latest commit hash tag and 'latest' tag..."
 
-      # Step 7: Deploy the image to EC2
-      - name: Deploy to EC2
-        run: |
-          echo "Deploying FastAPI backend to EC2..."
+      # Build the Frontend Docker image from the frontend directory
+      docker buildx build --platform linux/amd64 -f frontend/Dockerfile -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:${{ steps.get-commit-hash.outputs.commit-hash }} -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:latest frontend/
 
-          # SSH into the EC2 instance and perform the deployment
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ secrets.AWS_EC2_IP_TEST }} "
-            echo 'Logging into ECR...'
-            aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }};
-            echo 'Cleaning up old Docker images...'
-            docker system prune -af;
-            echo 'Pulling the latest FastAPI Docker image...'
-            docker-compose pull
-            echo 'Running the FastAPI Docker container with environment variables...'
-            docker-compose up -d
-          "
+      echo "Pushing Frontend Docker image with the commit hash and latest tag to ECR..."
+
+      # Push the Frontend Docker image tagged with the commit hash
+      docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:${{ steps.get-commit-hash.outputs.commit-hash }}
+
+      # Push the Frontend Docker image tagged as 'latest'
+      docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:latest
+
+   # Step 7: Setup SSH key for secure connection to EC2
+   - name: Setup SSH Key
+     run: |
+      echo "Setting up SSH key for EC2..."
+      mkdir -p ~/.ssh
+      echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+      chmod 600 ~/.ssh/id_rsa
+      ssh-keyscan -H ${{ secrets.AWS_EC2_IP_TEST }} >> ~/.ssh/known_hosts
+      echo "SSH key setup completed."
+
+   # Step 8: Deploy both frontend and backend to EC2
+   - name: Deploy to EC2
+     run: |
+      echo "Deploying CogniFlow Frontend and Backend to EC2..."
+
+      # SSH into the EC2 instance and perform the deployment
+      ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ secrets.AWS_EC2_IP_TEST }} "
+        echo 'Logging into ECR...'
+        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }};
+        
+        echo 'Updating environment variables...'
+        export BACKEND_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-backend:latest
+        export FRONTEND_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ secrets.REPO_NAME_TEST }}-frontend:latest
+        
+        echo 'Cleaning up old Docker images...'
+        docker system prune -af;
+        
+        echo 'Pulling the latest Docker images...'
+        docker pull \$BACKEND_IMAGE
+        docker pull \$FRONTEND_IMAGE
+        
+        echo 'Stopping existing containers...'
+        docker-compose -f docker-compose.prod.yml down
+        
+        echo 'Starting containers with new images...'
+        BACKEND_IMAGE=\$BACKEND_IMAGE FRONTEND_IMAGE=\$FRONTEND_IMAGE docker-compose -f docker-compose.prod.yml up -d
+        
+        echo 'Verifying deployment...'
+        sleep 30
+        docker-compose -f docker-compose.prod.yml ps
+      "

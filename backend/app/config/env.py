@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     CHROMADB_TENANT: str = os.getenv("CHROMADB_TENANT")
     CHROMADB_DATABASE: str = os.getenv("CHROMADB_DATABASE")
 
-    # Application Settings (hardcoded)
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    # Application Settings 
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000", 
+        "http://localhost:8000",
+        "https://cogniflow.bharatbhusal.com",
+        "https://backend-cogniFlow.bharatbhusal.com"
+    ]
 
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 

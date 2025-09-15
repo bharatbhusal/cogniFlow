@@ -1,1 +1,10 @@
 .vscode
+
+# Production environment files
+backend/.env.production
+frontend/.env.production
+
+# Environment files with sensitive data
+**/.env.local
+**/.env.prod
+**/.env.production.local
