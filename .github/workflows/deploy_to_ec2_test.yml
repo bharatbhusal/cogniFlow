@@ -3,7 +3,7 @@ name: Host cogniFlow Frontend and Backend on EC2 using ECR for prod environment
 on:
  push:
   branches:
-   - prod
+   - test
 
 jobs:
  Build:
