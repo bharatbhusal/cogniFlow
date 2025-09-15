@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         "http://localhost:3000", 
         "http://localhost:8000",
         "https://cogniflow.bharatbhusal.com",
-        "https://backend-cogniFlow.bharatbhusal.com"
+        "https://backend-cogniflow.bharatbhusal.com"
     ]
 
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")

@@ -54,7 +54,7 @@ fi
 
 # Set the domains
 FRONTEND_DOMAIN="cogniflow.bharatbhusal.com"
-BACKEND_DOMAIN="backend-cogniFlow.bharatbhusal.com"
+BACKEND_DOMAIN="backend-cogniflow.bharatbhusal.com"
 
 print_status "Deploying CogniFlow with ECR images:"
 print_status "Frontend: $FRONTEND_DOMAIN"

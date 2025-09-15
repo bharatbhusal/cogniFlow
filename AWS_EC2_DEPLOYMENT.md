@@ -8,7 +8,7 @@ This guide will help you deploy the CogniFlow application on AWS EC2 using Docke
 
 - AWS account with EC2 and ECR access
 - GitHub repository with Actions enabled
-- Domain names: `cogniflow.bharatbhusal.com` and `backend-cogniFlow.bharatbhusal.com`
+- Domain names: `cogniflow.bharatbhusal.com` and `backend-cogniflow.bharatbhusal.com`
 - Basic knowledge of AWS console and SSH
 
 ## Architecture
@@ -146,7 +146,7 @@ DEBUG=False
 
 ```bash
 # API Configuration
-VITE_API_BASE_URL=https://backend-cogniFlow.bharatbhusal.com
+VITE_API_BASE_URL=https://backend-cogniflow.bharatbhusal.com
 ```
 
 ## Step 5: CI/CD with GitHub Actions
@@ -176,12 +176,12 @@ If you need to manually update images on EC2:
 Point both domains to your EC2 instance:
 
 - Create an A record for `cogniflow.bharatbhusal.com` pointing to your EC2 public IP
-- Create an A record for `backend-cogniFlow.bharatbhusal.com` pointing to your EC2 public IP
+- Create an A record for `backend-cogniflow.bharatbhusal.com` pointing to your EC2 public IP
 
 ### 7.2 Domain Architecture
 
 - **Frontend Domain**: `cogniflow.bharatbhusal.com` - Serves the React frontend
-- **Backend Domain**: `backend-cogniFlow.bharatbhusal.com` - Serves the FastAPI backend
+- **Backend Domain**: `backend-cogniflow.bharatbhusal.com` - Serves the FastAPI backend
 
 This separation provides better security and allows independent scaling of services.
 
@@ -192,7 +192,7 @@ This separation provides better security and allows independent scaling of servi
 The quick-deploy script automatically handles SSL certificate generation for both domains:
 
 - `cogniflow.bharatbhusal.com` (Frontend)
-- `backend-cogniFlow.bharatbhusal.com` (Backend)
+- `backend-cogniflow.bharatbhusal.com` (Backend)
 
 ### 8.2 Manual SSL Setup (if needed)
 
@@ -202,19 +202,19 @@ docker-compose  stop nginx
 
 # Generate SSL certificates for both domains
 sudo certbot certonly --standalone -d cogniflow.bharatbhusal.com --email your-email@domain.com --agree-tos --non-interactive
-sudo certbot certonly --standalone -d backend-cogniFlow.bharatbhusal.com --email your-email@domain.com --agree-tos --non-interactive
+sudo certbot certonly --standalone -d backend-cogniflow.bharatbhusal.com --email your-email@domain.com --agree-tos --non-interactive
 
 # Create SSL directories and copy certificates
 sudo mkdir -p nginx/ssl/cogniflow.bharatbhusal.com
-sudo mkdir -p nginx/ssl/backend-cogniFlow.bharatbhusal.com
+sudo mkdir -p nginx/ssl/backend-cogniflow.bharatbhusal.com
 
 # Copy frontend certificates
 sudo cp /etc/letsencrypt/live/cogniflow.bharatbhusal.com/fullchain.pem nginx/ssl/cogniflow.bharatbhusal.com/
 sudo cp /etc/letsencrypt/live/cogniflow.bharatbhusal.com/privkey.pem nginx/ssl/cogniflow.bharatbhusal.com/
 
 # Copy backend certificates
-sudo cp /etc/letsencrypt/live/backend-cogniFlow.bharatbhusal.com/fullchain.pem nginx/ssl/backend-cogniFlow.bharatbhusal.com/
-sudo cp /etc/letsencrypt/live/backend-cogniFlow.bharatbhusal.com/privkey.pem nginx/ssl/backend-cogniFlow.bharatbhusal.com/
+sudo cp /etc/letsencrypt/live/backend-cogniflow.bharatbhusal.com/fullchain.pem nginx/ssl/backend-cogniflow.bharatbhusal.com/
+sudo cp /etc/letsencrypt/live/backend-cogniflow.bharatbhusal.com/privkey.pem nginx/ssl/backend-cogniflow.bharatbhusal.com/
 
 # Set proper permissions
 sudo chown -R $USER:$USER nginx/ssl/
@@ -269,7 +269,7 @@ Configure your DNS records to point to your EC2 instance:
 ### A Records
 
 - `cogniflow.bharatbhusal.com` → Your EC2 IP
-- `backend-cogniFlow.bharatbhusal.com` → Your EC2 IP
+- `backend-cogniflow.bharatbhusal.com` → Your EC2 IP
 
 ## Step 7: SSL Certificate Setup
 
@@ -278,7 +278,7 @@ SSL certificates are automatically configured during deployment via Let's Encryp
 ```bash
 # Certificates are automatically generated for both domains
 # cogniflow.bharatbhusal.com
-# backend-cogniFlow.bharatbhusal.com
+# backend-cogniflow.bharatbhusal.com
 
 # Certificate renewal is automated via cron job
 sudo crontab -l  # Verify renewal schedule
@@ -302,7 +302,7 @@ docker-compose  logs nginx
 
 ```bash
 # Check backend API health
-curl https://backend-cogniFlow.bharatbhusal.com/api/open/health
+curl https://backend-cogniflow.bharatbhusal.com/api/open/health
 
 # Check frontend accessibility
 curl https://cogniflow.bharatbhusal.com
@@ -360,7 +360,7 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
    sudo nginx -t
 
    # Check API endpoint accessibility
-   curl https://backend-cogniFlow.bharatbhusal.com/api/open/health
+   curl https://backend-cogniflow.bharatbhusal.com/api/open/health
    ```
 
 5. **Docker Container Issues**
@@ -376,7 +376,7 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 ## Architecture Overview
 
 - **Frontend**: React app served via Nginx on `cogniflow.bharatbhusal.com`
-- **Backend**: FastAPI application on `backend-cogniFlow.bharatbhusal.com` with `/api` prefix routing
+- **Backend**: FastAPI application on `backend-cogniflow.bharatbhusal.com` with `/api` prefix routing
 - **Database**: PostgreSQL with persistent storage
 - **SSL**: Let's Encrypt certificates for both domains
 - **CI/CD**: GitHub Actions with ECR image builds and automated deployment
@@ -483,4 +483,4 @@ For issues and questions:
 Access your application at:
 
 - **Frontend**: `https://cogniflow.bharatbhusal.com`
-- **Backend API**: `https://backend-cogniFlow.bharatbhusal.com`
+- **Backend API**: `https://backend-cogniflow.bharatbhusal.com`

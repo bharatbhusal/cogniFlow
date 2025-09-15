@@ -5,7 +5,7 @@
 echo "🔐 Starting SSL certificate renewal at $(date)"
 
 FRONTEND_DOMAIN="cogniflow.bharatbhusal.com"
-BACKEND_DOMAIN="backend-cogniFlow.bharatbhusal.com"
+BACKEND_DOMAIN="backend-cogniflow.bharatbhusal.com"
 
 # Stop nginx to allow certbot to bind to port 80
 docker-compose  stop nginx
