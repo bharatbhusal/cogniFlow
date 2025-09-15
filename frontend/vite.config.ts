@@ -54,5 +54,10 @@ export default defineConfig({
 		host: "0.0.0.0",
 		port: 5173,
 		open: false,
+		allowedHosts: [
+			"localhost",
+			"cogniflow.bharatbhusal.com",
+			"backend-cogniflow.bharatbhusal.com",
+		],
 	},
 });
