@@ -59,9 +59,9 @@ export default defineConfig({
 			"cogniflow.bharatbhusal.com",
 			"backend-cogniflow.bharatbhusal.com",
 		],
-		hmr: {
-			port: 5173,
-			host: "cogniflow.bharatbhusal.com",
-		},
+	},
+	preview: {
+		host: "0.0.0.0",
+		port: 5173,
 	},
 });
