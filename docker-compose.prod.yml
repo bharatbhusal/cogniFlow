@@ -6,7 +6,7 @@ services:
   image: ${BACKEND_IMAGE}
   container_name: cogniFlow-backend
   env_file:
-   - backend/.env
+   - .env.backend.production
   ports:
    - "8080:8080"
   depends_on:
@@ -33,7 +33,7 @@ services:
   image: ${FRONTEND_IMAGE}
   container_name: cogniFlow-frontend
   env_file:
-   - frontend/.env
+   - .env.frontend.production
   ports:
    - "3000:5173"
   restart: unless-stopped
@@ -45,10 +45,6 @@ services:
  postgres:
   image: postgres:15
   container_name: cogniFlow-postgres
-  environment:
-   POSTGRES_USER: postgres
-   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-   POSTGRES_DB: cogniflow
   ports:
    - "5432:5432"
   volumes:

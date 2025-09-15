@@ -91,7 +91,6 @@ fi
 print_status "Installing additional tools..."
 sudo yum install -y htop nginx
 # Install certbot for Amazon Linux 2
-sudo amazon-linux-extras install -y epel
 sudo yum install -y certbot python3-certbot-nginx
 
 # Configure firewall (iptables for Amazon Linux)
