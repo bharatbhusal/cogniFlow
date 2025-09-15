@@ -118,12 +118,57 @@ else
         if alembic upgrade head 2>/dev/null; then
             log "✓ Migration completed successfully despite revision mismatch"
         else
-            warn "Migration failed, attempting to stamp with latest available revision"
+            warn "Migration failed, attempting to force stamp with latest available revision"
             LATEST_REV=$(echo "$AVAILABLE_REVISIONS" | head -n1)
             if [ -n "$LATEST_REV" ]; then
-                alembic stamp "$LATEST_REV"
-                alembic upgrade head
-                log "✓ Database re-stamped and migrated"
+                log "Force updating alembic_version table directly..."
+                python -c "
+import asyncio
+from app.config.db import get_async_session
+from sqlalchemy import text
+
+async def force_stamp():
+    async with get_async_session() as session:
+        # Delete current alembic version
+        await session.execute(text('DELETE FROM alembic_version'))
+        # Insert new version
+        await session.execute(text('INSERT INTO alembic_version (version_num) VALUES (:version)'), {'version': '$LATEST_REV'})
+        await session.commit()
+        print('Forced stamp to $LATEST_REV')
+
+asyncio.run(force_stamp())
+                " 2>/dev/null && log "✓ Database force-stamped with revision: $LATEST_REV" || error "Force stamp failed"
+                
+                # Now try migration again
+                if alembic upgrade head; then
+                    log "✓ Database migration completed after force stamp"
+                else
+                    warn "Migration still failed, trying complete reset..."
+                    # Complete reset as last resort
+                    python -c "
+import asyncio
+from app.config.db import get_async_session
+from sqlalchemy import text
+
+async def reset_alembic():
+    async with get_async_session() as session:
+        # Drop alembic_version table if exists
+        await session.execute(text('DROP TABLE IF EXISTS alembic_version'))
+        await session.commit()
+        print('Alembic version table reset')
+
+asyncio.run(reset_alembic())
+                    " 2>/dev/null && log "✓ Alembic version table reset" || warn "Reset failed"
+                    
+                    # Try migration from scratch
+                    if alembic upgrade head; then
+                        log "✓ Database migration completed after reset"
+                    else
+                        error "Complete migration failure - manual intervention required"
+                        log "Manual fix: docker exec -it cogniFlow-postgres psql -U postgres -d cogniflow -c 'DROP TABLE IF EXISTS alembic_version;'"
+                        exit 1
+                    fi
+                fi
             else
                 error "Could not resolve migration conflict"
                 exit 1
