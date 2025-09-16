@@ -217,7 +217,7 @@ export const ChatPage: React.FC = () => {
 								placeholder={
 									canSendMessage
 										? "Type your message here...."
-										: "No documents available. Please upload documents to chat."
+										: "Create the workflow or add documents if you want RAG capabilities"
 								}
 								className="min-h-[44px] max-h-32 resize-none"
 								onKeyDown={(e) => {
