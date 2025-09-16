@@ -204,19 +204,22 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 					type: nodeType,
 					position: { x, y },
 					data: {
+						// pdf_files are synced in a separate effect to avoid re-initialization
 						pdf_files:
 							nodeType === "knowledgeBaseNode"
-								? pdfFiles
+								? undefined
 								: undefined,
 						onDelete: onDeleteNode,
-						files_to_upload:
-							nodeType === "knowledgeBaseNode"
-								? pdfFilesToSave
-								: [],
+						// files_to_upload will be managed per-node on upload/remove actions
+						files_to_upload: [],
 						onDataChange: onNodeDataChange,
 						onFileUpload:
 							nodeType === "knowledgeBaseNode"
 								? onFileUpload
+								: undefined,
+						onFilesUpload:
+							nodeType === "knowledgeBaseNode"
+								? onFilesUpload
 								: undefined,
 						onFileRemove:
 							nodeType === "knowledgeBaseNode"
@@ -465,9 +468,8 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 
 	const onFileUpload = useCallback(
 		(node_id: string, file: File) => {
-			setPdfFilesToSave((prev) => {
-				return [...prev, file];
-			});
+			console.log("Uploading single file:", file);
+			setPdfFilesToSave((prev) => [...prev, file]);
 
 			// Update the node data with the uploaded files
 			setNodes((prevNodes) => {
@@ -486,6 +488,71 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 						: node
 				);
 			});
+		},
+		[]
+	);
+
+	// Batched upload to avoid intermittent single-file updates
+	const onFilesUpload = useCallback(
+		(node_id: string, files: File[]) => {
+			console.log("Running batched upload for files:", files);
+			if (!files || files.length === 0) return;
+			// Merge all files at once, de-duplicate by a stable key
+			setPdfFilesToSave((prev) => {
+				const byKey = new Map(
+					prev.map(
+						(f) =>
+							[
+								`${f.name}-${f.size}-${
+									(f as any).lastModified ?? 0
+								}`,
+								f,
+							] as const
+					)
+				);
+				for (const f of files) {
+					byKey.set(
+						`${f.name}-${f.size}-${(f as any).lastModified ?? 0}`,
+						f
+					);
+				}
+				return Array.from(byKey.values());
+			});
+
+			// Update node's files_to_upload in-place in a single pass
+			setNodes((prevNodes) =>
+				prevNodes.map((node) => {
+					if (node.id !== node_id) return node;
+					const existing: File[] =
+						node.data.files_to_upload || [];
+					const byKey = new Map(
+						existing.map(
+							(f: File) =>
+								[
+									`${f.name}-${f.size}-${
+										(f as any).lastModified ?? 0
+									}`,
+									f,
+								] as const
+						)
+					);
+					for (const f of files) {
+						byKey.set(
+							`${f.name}-${f.size}-${
+								(f as any).lastModified ?? 0
+							}`,
+							f
+						);
+					}
+					return {
+						...node,
+						data: {
+							...node.data,
+							files_to_upload: Array.from(byKey.values()),
+						},
+					};
+				})
+			);
 		},
 		[]
 	);
@@ -548,7 +615,7 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 		}
 	}, [projectId, fetchOne, setCurrent]);
 
-	// Initialize nodes and edges from project data
+	// Initialize nodes and edges from project data (only when currentProject changes)
 	useEffect(() => {
 		if (currentProject && currentProject.workflow) {
 			const { nodes: newNodes, edges: newEdges } =
@@ -622,14 +689,22 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 			name: currentProject?.name || "",
 			description: currentProject?.description || "",
 		});
-	}, [
-		currentProject,
-		createWorkflowNodes,
-		getCurrentNodeDataFromCanvas,
-		onFileUpload,
-		onFileRemove,
-		onFilesToDeleteChange,
-	]);
+	}, [currentProject]);
+
+	// Keep knowledge base node's pdf_files in sync without resetting the canvas
+	useEffect(() => {
+		if (!pdfFiles) return;
+		setNodes((prevNodes) =>
+			prevNodes.map((node) =>
+				node.type === "knowledgeBaseNode"
+					? {
+							...node,
+							data: { ...node.data, pdf_files: pdfFiles },
+					  }
+					: node
+			)
+		);
+	}, [pdfFiles]);
 
 	const onDeleteNode = useCallback(
 		(nodeId: string) => {
@@ -858,6 +933,10 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 						type === "knowledgeBaseNode"
 							? onFileUpload
 							: undefined,
+					onFilesUpload:
+						type === "knowledgeBaseNode"
+							? onFilesUpload
+							: undefined,
 					onFileRemove:
 						type === "knowledgeBaseNode"
 							? onFileRemove
@@ -924,7 +1003,11 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 			toast.success(
 				"The update has been initiated. Please come back in a few minutes to see the changes."
 			);
-			navigate(`/projects`);
+			setDraftConfig(null);
+			setPdfFilesToSave([]);
+			setDeleteDocuments([]);
+			// Optionally, navigate back to projects list after save
+			// navigate(`/projects`);
 		} catch (error) {
 			toast.error("Failed to save project");
 		} finally {
@@ -938,6 +1021,7 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 		draftConfig,
 		basicInfo,
 		pdfFiles,
+		pdfFilesToSave,
 		deleteDocuments,
 	]);
 

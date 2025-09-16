@@ -20,6 +20,7 @@ interface KnowledgeBaseNodeData {
 	) => void;
 	onFileUpload?: (node_id: string, file: File) => void;
 	onFileRemove?: (node_id: string, file: File) => void;
+	onFilesUpload?: (node_id: string, files: File[]) => void;
 	onFilesToDeleteChange?: (fileId: string) => void;
 	openai_api_key?: string;
 	embedding_model_name?: string;
@@ -47,9 +48,12 @@ export const KnowledgeBaseNode = ({
 		event.preventDefault();
 		const files = Array.from(event.target.files || []);
 		if (files.length > 0) {
-			files.forEach((file) => {
-				data.onFileUpload?.(id, file);
-			});
+			// Prefer batched upload to keep state consistent
+			if (data.onFilesUpload) {
+				data.onFilesUpload(id, files);
+			} else {
+				files.forEach((file) => data.onFileUpload?.(id, file));
+			}
 		}
 		// Reset the input value to allow selecting the same files again
 		if (event.target) {
