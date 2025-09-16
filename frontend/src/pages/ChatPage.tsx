@@ -209,7 +209,7 @@ export const ChatPage: React.FC = () => {
 								onChange={(e) => setInputMessage(e.target.value)}
 								placeholder={
 									canSendMessage
-										? "Type your message here..."
+										? "Type your message here...."
 										: "No documents available. Please upload documents to chat."
 								}
 								className="min-h-[44px] max-h-32 resize-none"
