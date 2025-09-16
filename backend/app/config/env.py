@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     # JWT Configuration
     AUTH_SECRET_KEY: str = os.getenv("AUTH_SECRET_KEY")
 
-    # ChromaDB Configuration
-    CHROMADB_API_KEY: str = os.getenv("CHROMADB_API_KEY")
-    CHROMADB_TENANT: str = os.getenv("CHROMADB_TENANT")
-    CHROMADB_DATABASE: str = os.getenv("CHROMADB_DATABASE")
+    # ChromaDB (Local HTTP) configuration
+    CHROMADB_HOST: str = os.getenv("CHROMADB_HOST", "localhost")
+    CHROMADB_PORT: int = int(os.getenv("CHROMADB_PORT", "8000"))
+    CHROMADB_SSL: bool = os.getenv("CHROMADB_SSL", "false").lower() in ("true", "1", "t", "yes")
 
     # Application Settings 
     CORS_ORIGINS: list[str] = [

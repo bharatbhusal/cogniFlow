@@ -52,37 +52,26 @@ class KnowledgeBaseService:
         self.api_key = api_key
         self.model = model
         
-        # Initialize ChromaDB cloud client
+        # Initialize ChromaDB client: prefer local HTTP server when not using cloud
         try:
-            self.chroma_client = chromadb.CloudClient(
-                api_key=settings.CHROMADB_API_KEY,
-                tenant=settings.CHROMADB_TENANT,
-                database=settings.CHROMADB_DATABASE
-            )
-            
+            self.chroma_client = chromadb.HttpClient(
+                    host=settings.CHROMADB_HOST,
+                    port=settings.CHROMADB_PORT,
+                    ssl=settings.CHROMADB_SSL,
+                )
             # Test the connection
             self.chroma_client.heartbeat()
-            
+
             # Create model-specific collection name to handle different embedding dimensions
             self.collection_name = vector_collection
             self.collection = self._get_or_create_collection()
         except Exception as e:
-            error_msg = str(e).lower()
-            if "unauthorized" in error_msg or "api key" in error_msg:
-                raise ChromaDBError(
-                    message="ChromaDB Cloud authentication failed",
-                    details="Please check your ChromaDB API key, tenant, and database settings."
-                )
-            elif "network" in error_msg or "connection" in error_msg:
-                raise ChromaDBError(
-                    message="Failed to connect to ChromaDB Cloud",
-                    details="Please check your network connection and ChromaDB Cloud service status."
-                )
-            else:
-                raise ChromaDBError(
-                    message="Failed to initialize ChromaDB Cloud",
-                    details=str(e)
-                )
+            # Always local ChromaDB
+            raise ChromaDBError(
+                log("Chroma Error", e),
+                message="Failed to initialize local ChromaDB",
+                details=str(e),
+            )
         
         # Initialize OpenAI client for embeddings
         self.openai_client = AsyncOpenAI(api_key=api_key)

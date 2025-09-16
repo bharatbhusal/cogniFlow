@@ -56,7 +56,7 @@ export const ChatPage: React.FC = () => {
 				false;
 
 			// Disable textarea if no kb and no documents
-			setCanSendMessage(hasKb || hasDocuments);
+			setCanSendMessage(hasKb ? hasKb && hasDocuments : true);
 		}
 	}, [project]);
 
@@ -208,9 +208,9 @@ export const ChatPage: React.FC = () => {
 								value={inputMessage}
 								onChange={(e) => setInputMessage(e.target.value)}
 								placeholder={
-									!canSendMessage
-										? "No documents available. Please upload documents to chat."
-										: "Type your message here..."
+									canSendMessage
+										? "Type your message here..."
+										: "No documents available. Please upload documents to chat."
 								}
 								className="min-h-[44px] max-h-32 resize-none"
 								onKeyDown={(e) => {
