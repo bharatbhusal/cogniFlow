@@ -49,6 +49,7 @@ export const ChatPage: React.FC = () => {
 
 	useEffect(() => {
 		if (project) {
+			const hashWorkflow = project.workflow?.split("_") || [];
 			const hasKb =
 				project.workflow?.split("_").includes("kb") || false;
 			const hasDocuments =
@@ -56,7 +57,13 @@ export const ChatPage: React.FC = () => {
 				false;
 
 			// Disable textarea if no kb and no documents
-			setCanSendMessage(hasKb ? hasKb && hasDocuments : true);
+			setCanSendMessage(
+				hashWorkflow.length > 0
+					? hasKb
+						? hasKb && hasDocuments
+						: true
+					: false
+			);
 		}
 	}, [project]);
 
