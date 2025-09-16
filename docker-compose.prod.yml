@@ -44,30 +44,30 @@ services:
    timeout: 5s
    retries: 5
 
-  chromadb:
-   image: chromadb/chroma:1.0.22.dev23
-   container_name: cogniFlow-chromadb
-   ports:
-    - "8000:8000"
-   environment:
-    # Persist to volume, disable anonymous telemetry for production
-    - IS_PERSISTENT=TRUE
-    - PERSIST_DIRECTORY=/chroma
-    - ANONYMIZED_TELEMETRY=False
-   volumes:
-    - chroma_data:/chroma
-   restart: unless-stopped
-   healthcheck:
-    test:
-     [
-      "CMD",
-      "curl",
-      "-f",
-      "http://localhost:8000/api/v1/heartbeat",
-     ]
-    interval: 20s
-    timeout: 5s
-    retries: 5
+ chromadb:
+  image: chromadb/chroma:1.0.22.dev23
+  container_name: cogniFlow-chromadb
+  ports:
+   - "8000:8000"
+  environment:
+   # Persist to volume, disable anonymous telemetry for production
+   - IS_PERSISTENT=TRUE
+   - PERSIST_DIRECTORY=/chroma
+   - ANONYMIZED_TELEMETRY=False
+  volumes:
+   - chroma_data:/chroma
+  restart: unless-stopped
+  healthcheck:
+   test:
+    [
+     "CMD",
+     "curl",
+     "-f",
+     "http://localhost:8000/api/v1/heartbeat",
+    ]
+   interval: 20s
+   timeout: 5s
+   retries: 5
 
 volumes:
  postgres_data:
