@@ -280,6 +280,7 @@ class LLMService:
         retrieved_context: Optional[List[str]],
         conversation_history: Optional[List[Dict[str, str]]] = None,
         context_limit: int = 3000,
+        workflow_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Execute the RAG pipeline with user query, retrieved context, and conversation history"""
         try:
@@ -288,7 +289,8 @@ class LLMService:
                 user_query=user_query,
                 retrieved_context=retrieved_context,
                 conversation_history=conversation_history,
-                context_limit=context_limit
+                context_limit=context_limit,
+                workflow_context=workflow_context
             )
 
             # Adjust temperature based on context availability
@@ -320,22 +322,56 @@ class LLMService:
         user_query: str,
         retrieved_context: Optional[List[str]],
         conversation_history: Optional[List[Dict[str, str]]],
-        context_limit: int
+        context_limit: int,
+        workflow_context: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, str]]:
         """Build customized message structure based on available context and conversation history"""
         
-        # Scenario 1: No context, no history - General knowledge mode
+        # Extract workflow information
+        kb_attempted = workflow_context.get("kb_attempted", False) if workflow_context else False
+        web_attempted = workflow_context.get("web_attempted", False) if workflow_context else False
+        
+        # Scenario 1: No context, no history - Check if steps were attempted
         if not retrieved_context and not conversation_history:
-            return [
-                {
-                    "role": "system",
-                    "content": """You are a helpful AI assistant. Since no specific context or conversation history was provided, you can use your general knowledge to answer the question. Please indicate that your answer is based on general knowledge and suggest adding relevant documents for more specific information.""",
-                },
-                {
-                    "role": "user",
-                    "content": user_query,
-                },
-            ]
+            # If KB or Web steps were attempted but returned no results
+            if kb_attempted or web_attempted:
+                attempted_sources = []
+                if kb_attempted:
+                    attempted_sources.append("knowledge base")
+                if web_attempted:
+                    attempted_sources.append("web search")
+                    
+                sources_text = " and ".join(attempted_sources)
+                return [
+                    {
+                        "role": "system",
+                        "content": f"""You are an AI assistant that was asked to search {sources_text} for relevant information, but no relevant context was found in these sources for the user's query. 
+
+IMPORTANT: Since the {sources_text} search returned no relevant results, you should clearly state this and explain that you cannot provide a comprehensive answer based on the available sources. Do NOT use your general knowledge to fully answer the question, as the user specifically chose to search these sources.
+
+Please inform the user that no relevant information was found in the {sources_text} and suggest:
+1. Rephrasing the question
+2. Adding more relevant documents to the knowledge base (if applicable)
+3. Trying different search terms
+4. Or using a different workflow that includes general knowledge""",
+                    },
+                    {
+                        "role": "user",
+                        "content": user_query,
+                    },
+                ]
+            # Pure general knowledge mode - no sources were attempted
+            else:
+                return [
+                    {
+                        "role": "system",
+                        "content": """You are a helpful AI assistant. Since no specific context or conversation history was provided, you can use your general knowledge to answer the question. Please indicate that your answer is based on general knowledge and suggest adding relevant documents for more specific information.""",
+                    },
+                    {
+                        "role": "user",
+                        "content": user_query,
+                    },
+                ]
         
         # Scenario 2: Context available, no history - Context-only RAG mode
         elif retrieved_context and not conversation_history:
@@ -362,25 +398,60 @@ Please answer the question using only the above context.""",
         
         # Scenario 3: No context, but has history - Conversational mode with memory
         elif not retrieved_context and conversation_history:
-            # Build conversation history text to include in system message
-            conversation_history_text = self._build_conversation_history_text(
-                conversation_history, max_exchanges=5
-            )
-            
-            return [
-                {
-                    "role": "system",
-                    "content": f"""You are a helpful AI assistant engaged in a conversation. Use the conversation history to maintain context and provide relevant responses. Since no specific documents are provided, you may use your general knowledge while being mindful of the ongoing conversation.
+            # Check if KB or Web steps were attempted but returned no results
+            if kb_attempted or web_attempted:
+                attempted_sources = []
+                if kb_attempted:
+                    attempted_sources.append("knowledge base")
+                if web_attempted:
+                    attempted_sources.append("web search")
+                    
+                sources_text = " and ".join(attempted_sources)
+                conversation_history_text = self._build_conversation_history_text(
+                    conversation_history, max_exchanges=10
+                )
+                
+                return [
+                    {
+                        "role": "system",
+                        "content": f"""You are an AI assistant engaged in a conversation. The {sources_text} search was attempted but returned no relevant results for this query.
+
+{conversation_history_text}
+
+IMPORTANT: Since the {sources_text} search returned no relevant results, you should:
+1) Acknowledge that the search in {sources_text} found no relevant information
+2) Reference our conversation history to maintain context
+3) Provide a helpful response while noting the limitation of the search results
+4) Suggest alternative approaches like rephrasing the question or adding more relevant documents (if applicable)
+
+Please consider the above conversation history when responding to maintain continuity.""",
+                    },
+                    {
+                        "role": "user",
+                        "content": user_query
+                    }
+                ]
+            # Pure conversational mode - no sources were attempted
+            else:
+                # Build conversation history text to include in system message
+                conversation_history_text = self._build_conversation_history_text(
+                    conversation_history, max_exchanges=10
+                )
+                
+                return [
+                    {
+                        "role": "system",
+                        "content": f"""You are a helpful AI assistant engaged in a conversation. Use the conversation history to maintain context and provide relevant responses. Since no specific documents are provided, you may use your general knowledge while being mindful of the ongoing conversation.
 
 {conversation_history_text}
 
 Please consider the above conversation history when responding to maintain continuity and context.""",
-                },
-                {
-                    "role": "user",
-                    "content": user_query
-                }
-            ]
+                    },
+                    {
+                        "role": "user",
+                        "content": user_query
+                    }
+                ]
         
         # Scenario 4: Both context and history - Full RAG with conversational awareness
         else:

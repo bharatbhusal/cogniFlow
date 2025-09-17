@@ -993,21 +993,28 @@ const EditProjectView: React.FC<EditProjectViewProps> = ({
 		};
 
 		try {
-			update(projectId, {
+			const result = await update(projectId, {
 				project_config: updateData,
 				name: basicInfo.name,
 				description: basicInfo.description,
 				pdf_files: pdfFilesToSave,
 				delete_documents: deleteDocuments,
 			});
-			toast.success(
-				"The update has been initiated. Please come back in a few minutes to see the changes."
-			);
-			setDraftConfig(null);
-			setPdfFilesToSave([]);
-			setDeleteDocuments([]);
-			// Optionally, navigate back to projects list after save
-			// navigate(`/projects`);
+			if (result.meta.requestStatus === "fulfilled") {
+				const project = result.payload as any;
+				if (project?.id) {
+					toast.success("Project updated successfully!");
+					navigate(`/projects/${project.id}?editable=false`);
+				}
+			} else if (result.meta.requestStatus === "rejected") {
+				toast.error(
+					(result.payload as string) ||
+						"Failed to update project"
+				);
+			}
+			// setDraftConfig(null);
+			// setPdfFilesToSave([]);
+			// setDeleteDocuments([]);
 		} catch (error) {
 			toast.error("Failed to save project");
 		} finally {

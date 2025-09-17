@@ -55,6 +55,7 @@ class WorkflowExecutor:
                 "sources": [],
                 "execution_log": [],
                 "conversation_history": conversation_history or [],
+                "workflow_steps_executed": [],
             }
 
             # Execute workflow steps in order
@@ -66,10 +67,13 @@ class WorkflowExecutor:
                             details="Please add documents to the knowledge base or modify the workflow to exclude the knowledge base step"
                         )
                     context = await self._execute_kb_step(context, configured_services)
+                    context["workflow_steps_executed"].append("kb")
                 elif step == "llm":
                     context = await self._execute_llm_step(context, configured_services)
+                    context["workflow_steps_executed"].append("llm")
                 elif step == "web":
                     context = await self._execute_web_step(context, configured_services)
+                    context["workflow_steps_executed"].append("web")
 
             return {
                 "response_text": context["final_response"],
@@ -231,11 +235,18 @@ class WorkflowExecutor:
             if context["web_results"]:
                 all_context.extend(context["web_results"])
 
-                # Use RAG pipeline with context
+            # Prepare workflow context to inform LLM about which steps were attempted
+            workflow_context = {
+                "kb_attempted": "kb" in context.get("workflow_steps_executed", []),
+                "web_attempted": "web" in context.get("workflow_steps_executed", []),
+            }
+
+            # Use RAG pipeline with context and workflow information
             result = await llm_service_instance.run_rag_pipeline(
                 user_query=context["user_query"],
                 retrieved_context=all_context,
                 conversation_history=context["conversation_history"],
+                workflow_context=workflow_context,
             )
             context["final_response"] = result["response_text"]
             context["execution_log"].append(f"Generated RAG response using {len(all_context)} context sources")

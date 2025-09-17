@@ -476,6 +476,7 @@ class KnowledgeBaseService:
                     n_results=n_results,
                     include=["documents", "metadatas", "distances", "embeddings"]
                 )
+                log("ChromaDB Query Results", results)
                 
                 # Filter results to only include specified chunk IDs
                 if results["ids"] and results["ids"][0]:
@@ -487,6 +488,21 @@ class KnowledgeBaseService:
                             filtered_results["distances"][0].append(results["distances"][0][i] if results["distances"] else 0)
                             filtered_results["ids"][0].append(chunk_id)
                     results = filtered_results
+                    log("Filtered ChromaDB Results", results)
+                
+                # Test different filter methods
+                temp_by_id = self.collection.get(
+                    ids=["cmfnov4bl00050npkfx76zct7_chunk_25"],
+                    include=["documents", "metadatas"]
+                )
+                
+                temp_by_doc_id = self.collection.get(
+                    where={"document_id": "cmfnov4bl00050npkfx76zct7"},
+                    include=["documents", "metadatas"]
+                )
+
+                log("Temp ChromaDB Get Results by ID", temp_by_id)
+                log("Temp ChromaDB Get Results by Document ID", temp_by_doc_id)
             else:
                 # Regular query without ID filtering
                 results = self.collection.query(
@@ -624,36 +640,70 @@ class KnowledgeBaseService:
                 include=["metadatas"]
             )
             
-            if results["ids"]:
+            if results["ids"] and len(results["ids"]) > 0:
                 self.collection.delete(ids=results["ids"])
+                log("ChromaDB delete_project success", {
+                    "project_id": project_id,
+                    "deleted_chunks": len(results["ids"])
+                })
                 return True
-            
-            return False
+            else:
+                log("ChromaDB delete_project - no chunks found", {
+                    "project_id": project_id
+                })
+                return False
             
         except Exception as e:
-            raise VectorStoreError(
-                message="Failed to delete project",
+            log("ChromaDB delete_project error", {
+                "project_id": project_id,
+                "error": str(e)
+            })
+            # Raise the error after logging
+            raise ChromaDBError(
+                message="Failed to delete project from vector store",
                 details=str(e)
             )
     
-    def delete_document(self, document_id: str) -> bool:
+    async def delete_document(self, document_id: str) -> bool:
         """Delete all chunks of a document from vector store"""
         try:
-            # Get all chunk IDs for this document
+            log("Chroma Document Deletion", {
+                "document_id": document_id,
+                "collection": str(self.collection),
+            })
+            
+            # Get all chunk IDs for this document using correct filter syntax
             results = self.collection.get(
                 where={"document_id": document_id},
                 include=["metadatas"]
             )
-            print("\n\nChromaDB delete_document results:", results)  # Debugging line
             
-            if results["ids"]:
+            log("ChromaDB delete_document results", {
+                "document_id": document_id,
+                "found_ids": len(results["ids"]) if results["ids"] else 0,
+                "ids": results["ids"] if results["ids"] else []
+            })
+            
+            if results["ids"] and len(results["ids"]) > 0:
                 self.collection.delete(ids=results["ids"])
+                log("ChromaDB delete_document success", {
+                    "document_id": document_id,
+                    "deleted_chunks": len(results["ids"])
+                })
                 return True
-            
-            return False
+            else:
+                log("ChromaDB delete_document - no chunks found", {
+                    "document_id": document_id
+                })
+                return False
             
         except Exception as e:
-            raise VectorStoreError(
-                message="Failed to delete document",
+            log("ChromaDB delete_document error", {
+                "document_id": document_id,
+                "error": str(e)
+            })
+            # Raise the error after logging
+            raise ChromaDBError(
+                message="Failed to delete document from vector store",
                 details=str(e)
             )

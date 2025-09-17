@@ -376,8 +376,24 @@ class ProjectService:
                             embedding_model = updated_project.knowledge_base_node.embedding_model_name
                             
                         kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model, vector_collection=embedding_model)
-                        chromadb_deleted = kb_service_instance.delete_document(doc_id)
+                        
+                        # Handle potential ChromaDB errors
+                        try:
+                            log("Document for deletion", {
+                                "document_id": document.id,
+                                "chroma_document_id": document.chroma_document_id,
+                                "title": document.title
+                            })
+                            chromadb_deleted = await kb_service_instance.delete_document(document.chroma_document_id)
+                        except Exception as e:
+                            log("ChromaDB deletion error in project update", {
+                                "document_id": document.chroma_document_id,
+                                "error": str(e)
+                            })
+                            chromadb_deleted = False
+                            
                         postgres_deleted = await DocumentRepository.delete(db, doc_id)
+                        # postgres_deleted = False
                         changes["deleted_files"].append({
                             "id": doc_id,
                             "title": document.title,
@@ -625,7 +641,17 @@ class ProjectService:
             for doc in documents:
                 # Create a minimal service instance for deletion (doesn't need real API keys)
                 kb_service_instance = KnowledgeBaseService(api_key=kb_api_key, model=embedding_model, vector_collection=embedding_model)
-                chromadb_deleted = kb_service_instance.delete_document(doc.id)
+                
+                # Handle potential ChromaDB errors
+                try:
+                    chromadb_deleted = await kb_service_instance.delete_document(doc.id)
+                except Exception as e:
+                    log("ChromaDB deletion error in project deletion", {
+                        "document_id": doc.id,
+                        "error": str(e)
+                    })
+                    chromadb_deleted = False
+                    
                 deleted_documents.append(
                     {
                         "document_id": doc.id,
