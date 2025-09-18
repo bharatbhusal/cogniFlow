@@ -32,5 +32,11 @@ class Settings(BaseSettings):
     POCKITY_ACCESS_KEY_ID: str = os.getenv("POCKITY_ACCESS_KEY_ID")
     POCKITY_SECRET_KEY: str = os.getenv("POCKITY_SECRET_KEY")
 
+    # SMTP Email Configuration
+    SMTP_HOST: str = os.getenv("SMTP_HOST")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_MAIL_ID: str = os.getenv("SMTP_MAIL_ID")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD")
+
 def get_settings() -> Settings:
     return Settings()

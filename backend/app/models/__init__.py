@@ -6,7 +6,8 @@ from .knowledge_base_node import KnowledgeBaseNode
 from .workflow import Workflow
 from .llm_node import LlmNode
 from .web_search_node import WebSearchNode
+from .otp import OTP
 
 
 # This ensures all models are loaded and relationships can be resolved
-__all__ = ["User", "Project", "Document", "Message", "Workflow", "LlmNode", "WebSearchNode", "KnowledgeBaseNode"]
+__all__ = ["User", "Project", "Document", "Message", "Workflow", "LlmNode", "WebSearchNode", "KnowledgeBaseNode", "OTP"]

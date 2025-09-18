@@ -9,3 +9,5 @@ frontend/.env.production
 **/.env.*.production
 
 creds.txt
+docs/*
+copilot-instructions.md

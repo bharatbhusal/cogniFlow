@@ -1,89 +1,138 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Any
 from app.middlewares.auth_middleware import get_current_user
+from app.middlewares.otp_middleware import verify_registration_otp, verify_login_otp
+from app.services.auth_service import AuthService
 from app.types.user import (
-    UserRegisterDict,
-    UserLoginDict,
     AuthJWTTokenDict,
+    OTPRequest,
 )
-from app.repositories.user import UserRepository
 from app.config.db import get_db
-from app.utils.hashing import hash_data, verify_data
-from app.utils.jwt import create_access_token
 from app.utils.responses import create_success_response, create_error_response
+from app.utils.logger import log
 
 router = APIRouter()
 
 
-@router.post("/register")
-async def register(user: UserRegisterDict, db: AsyncSession = Depends(get_db)):
-    # Check if user already exists
-    existing_user = await UserRepository.get_by_email(db=db, email=user["email"])
-    if existing_user:
+@router.post("/request-otp")
+async def request_otp(otp_request: OTPRequest, db: AsyncSession = Depends(get_db)):
+    """Request OTP for registration or login"""
+    try:
+        result = await AuthService.request_otp(
+            db=db, 
+            email=otp_request.email, 
+            purpose=otp_request.purpose
+        )
+        
+        return create_success_response(
+            message=f"OTP sent successfully to {otp_request.email}",
+            data=result,
+            status_code=status.HTTP_200_OK,
+        )
+        
+    except ValueError as e:
         return create_error_response(
-            message="Email already registered",
-            error_code="EMAIL_EXISTS",
-            status_code=400
+            message=str(e),
+            error_code="VALIDATION_ERROR",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        log("Failed to send OTP",e)
+        return create_error_response(
+            message="Failed to send OTP",
+            error_code="OTP_SEND_FAILED",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    # Hash the password before saving
-    user_data: UserRegisterDict = {
-        "email": user["email"],
-        "password": hash_data(user["password"]),
-    }
-    # Create new user
-    new_user = await UserRepository.create(db=db, user=user_data)
-    return create_success_response(
-        message="User registered successfully",
-        data={"user": {"id": new_user.id, "email": new_user.email, "full_name": new_user.full_name}},
-        status_code=201
-    )
+
+@router.post("/register")
+async def register(
+    verified_data: Dict[str, Any] = Depends(verify_registration_otp),
+    db: AsyncSession = Depends(get_db)
+):
+    """Complete registration after OTP verification"""
+    try:
+        result = await AuthService.register_user(
+            db=db,
+            email=verified_data["email"],
+            password=verified_data["password"]
+        )
+        
+        return create_success_response(
+            message="User registered successfully",
+            data=result,
+            status_code=status.HTTP_201_CREATED,
+        )
+        
+    except ValueError as e:
+        return create_error_response(
+            message=str(e),
+            error_code="REGISTRATION_ERROR",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        log("Registration failed", e)
+        return create_error_response(
+            message="Registration failed",
+            error_code="REGISTRATION_FAILED",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @router.post("/login")
-async def login(user: UserLoginDict, db: AsyncSession = Depends(get_db)):
-    # Check if user already exists
-    existing_user = await UserRepository.get_by_email(db=db, email=user["email"])
-    if not existing_user:
-        return create_error_response(
-            message="User doesn't exist",
-            error_code="USER_NOT_FOUND",
-            status_code=400
+async def login(
+    verified_data: Dict[str, Any] = Depends(verify_login_otp),
+    db: AsyncSession = Depends(get_db)
+):
+    """Complete login after OTP verification"""
+    try:
+        result = await AuthService.login_user(
+            db=db,
+            email=verified_data["email"],
+            password=verified_data["password"]
         )
-
-    # Verify password
-    if not verify_data(user["password"], existing_user.password):
-        return create_error_response(
-            message="Invalid email or password",
-            error_code="INVALID_CREDENTIALS",
-            status_code=400
+        
+        return create_success_response(
+            message="Login successful",
+            data=result,
+            status_code=status.HTTP_200_OK,
         )
-
-    token = create_access_token(
-        {
-            "id": existing_user.id,
-            "password": user["password"],
-            "email": existing_user.email,
-        }
-    )
-    del existing_user.password
-    return create_success_response(
-        message="Login successful",
-        data={"access_token": token, "user": {"id": existing_user.id, "email": existing_user.email, "full_name": existing_user.full_name}},
-        status_code=200
-    )
+        
+    except ValueError as e:
+        return create_error_response(
+            message=str(e),
+            error_code="LOGIN_ERROR", 
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        log("Login failed", e)
+        return create_error_response(
+            message="Login failed",
+            error_code="LOGIN_FAILED",
+            details=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @router.get("/me")
-async def get_me(user: AuthJWTTokenDict | None = Depends(get_current_user)):
-    if user is not None:
+async def get_me(user: AuthJWTTokenDict = Depends(get_current_user)):
+    """Get current user information"""
+    try:
+        result = await AuthService.get_current_user_profile(user)
+        
         return create_success_response(
             message="User fetched successfully",
-            data={"user": {"id": user.id, "email": user.email, "password": user.password}},
-            status_code=200
+            data=result,
+            status_code=status.HTTP_200_OK,
         )
-    return create_error_response(
-        message="User not authenticated",
-        error_code="NOT_AUTHENTICATED",
-        status_code=401
-    )
+        
+    except Exception as e:
+        log("Failed to get user profile:", e)
+        return create_error_response(
+            message="Failed to get user profile",
+            error_code="PROFILE_FETCH_FAILED",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

@@ -34,6 +34,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class OTPRequest(BaseModel):
+    email: str
+    purpose: str  # 'registration' or 'login'
+
+
 class Auth_JWT_Token(BaseModel):
     id: str
     email: str
@@ -74,3 +79,8 @@ class AuthJWTTokenDict(TypedDict):
     id: str
     email: str
     password: str
+
+
+class OTPRequestDict(TypedDict):
+    email: str
+    purpose: str
