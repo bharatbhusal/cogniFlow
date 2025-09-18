@@ -1,39 +1,43 @@
 // Store exports
 export { store, persistor } from "./store";
-export { useAppDispatch, useAppSelector } from "./store/hooks";
+export {
+	useAppDispatch,
+	useAppSelector,
+} from "./store/hooks";
 export * from "./store/selectors";
 
 // Auth slice exports
 export {
-  loginUser,
-  registerUser,
-  getCurrentUser,
-  logout,
-  setToken,
-  clearAuth,
+	requestOTP,
+	loginUser,
+	registerUser,
+	getCurrentUser,
+	logout,
+	setToken,
+	clearAuth,
 } from "./store/slices/authSlice";
 
 // Projects slice exports
 export {
-  createProject,
-  fetchProjects,
-  fetchProject,
-  updateProject,
-  deleteProject,
-  queryProject,
-  setCurrentProject,
-  clearCurrentProject,
-  updateProjectInList,
-  addProjectToList,
-  removeProjectFromList,
+	createProject,
+	fetchProjects,
+	fetchProject,
+	updateProject,
+	deleteProject,
+	queryProject,
+	setCurrentProject,
+	clearCurrentProject,
+	updateProjectInList,
+	addProjectToList,
+	removeProjectFromList,
 } from "./store/slices/projectSlice";
 
 // UI slice exports
 export {
-  toggleTheme,
-  setTheme,
-  toggleSidebar,
-  setSidebarOpen,
+	toggleTheme,
+	setTheme,
+	toggleSidebar,
+	setSidebarOpen,
 } from "./store/slices/uiSlice";
 
 // Hook exports

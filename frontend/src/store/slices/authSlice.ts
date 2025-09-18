@@ -8,6 +8,8 @@ import {
 	AuthState,
 	LoginRequest,
 	RegisterRequest,
+	OTPRequest,
+	OTPVerifyRequest,
 } from "../../types";
 import { apiClient } from "../../services/api";
 
@@ -20,9 +22,24 @@ const initialState: AuthState = {
 };
 
 // Async thunks
+export const requestOTP = createAsyncThunk(
+	"auth/requestOTP",
+	async (otpData: OTPRequest, { rejectWithValue }) => {
+		try {
+			const response = await apiClient.requestOTP(otpData);
+			return response;
+		} catch (error: any) {
+			return rejectWithValue(error.message);
+		}
+	}
+);
+
 export const loginUser = createAsyncThunk(
 	"auth/login",
-	async (credentials: LoginRequest, { rejectWithValue }) => {
+	async (
+		credentials: OTPVerifyRequest,
+		{ rejectWithValue }
+	) => {
 		try {
 			const response = await apiClient.login(credentials);
 			localStorage.setItem(
@@ -38,9 +55,16 @@ export const loginUser = createAsyncThunk(
 
 export const registerUser = createAsyncThunk(
 	"auth/register",
-	async (userData: RegisterRequest, { rejectWithValue }) => {
+	async (
+		userData: OTPVerifyRequest,
+		{ rejectWithValue }
+	) => {
 		try {
 			const response = await apiClient.register(userData);
+			localStorage.setItem(
+				"access_token",
+				response.data.access_token
+			);
 			return response.data;
 		} catch (error: any) {
 			return rejectWithValue(error.message);
@@ -107,6 +131,18 @@ const authSlice = createSlice({
 			}
 		});
 
+		// Request OTP
+		builder
+			.addCase(requestOTP.pending, (state) => {
+				state.loading = true;
+			})
+			.addCase(requestOTP.fulfilled, (state) => {
+				state.loading = false;
+			})
+			.addCase(requestOTP.rejected, (state) => {
+				state.loading = false;
+			});
+
 		// Login
 		builder
 			.addCase(loginUser.pending, (state) => {
@@ -128,8 +164,11 @@ const authSlice = createSlice({
 			.addCase(registerUser.pending, (state) => {
 				state.loading = true;
 			})
-			.addCase(registerUser.fulfilled, (state) => {
+			.addCase(registerUser.fulfilled, (state, action) => {
 				state.loading = false;
+				state.user = action.payload.user;
+				state.token = action.payload.access_token;
+				state.isAuthenticated = true;
 			})
 			.addCase(registerUser.rejected, (state, action) => {
 				state.loading = false;

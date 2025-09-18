@@ -8,6 +8,9 @@ import {
 	AuthResponse,
 	LoginRequest,
 	RegisterRequest,
+	OTPRequest,
+	OTPVerifyRequest,
+	OTPResponse,
 	Project,
 	ProjectListResponse,
 	CreateProjectRequest,
@@ -106,8 +109,18 @@ class ApiClient {
 	}
 
 	// Auth API methods
+	async requestOTP(
+		otpData: OTPRequest
+	): Promise<ApiResponse<OTPResponse>> {
+		return this.request<ApiResponse<OTPResponse>>({
+			method: "POST",
+			url: "/auth/request-otp",
+			data: otpData,
+		});
+	}
+
 	async login(
-		credentials: LoginRequest
+		credentials: OTPVerifyRequest
 	): Promise<AuthResponse> {
 		return this.request<AuthResponse>({
 			method: "POST",
@@ -117,9 +130,9 @@ class ApiClient {
 	}
 
 	async register(
-		userData: RegisterRequest
-	): Promise<ApiResponse> {
-		return this.request<ApiResponse>({
+		userData: OTPVerifyRequest
+	): Promise<AuthResponse> {
+		return this.request<AuthResponse>({
 			method: "POST",
 			url: "/auth/register",
 			data: userData,
